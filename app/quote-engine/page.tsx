@@ -13,6 +13,8 @@ import { getAllProducts } from '@/lib/api/product.service';
 import { QuoteCustomer, QuoteProject } from '@/lib/api/leads.service';
 import { getRequirementScope, transformScopeToRooms } from '@/lib/api/requirement-scope.service';
 import { useAuthSession } from '@/lib/auth/useCurrentUser';
+import QuoteInvoiceSheet from '@/components/quote-engine/QuoteInvoiceSheet';
+import { invoiceSharePath, saveSharedQuote } from '@/lib/quote/share-snapshot';
 
 // Local UI-only Interfaces
 export interface Customer {
@@ -204,6 +206,7 @@ function QuoteEngineContent() {
   // UI Feedback / Alerts
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   // ============================================================================
   // Load data from APIs on mount
@@ -741,18 +744,24 @@ function QuoteEngineContent() {
   };
 
   const handleShareQuote = () => {
-    if (typeof window !== 'undefined') {
-      navigator.clipboard?.writeText(window.location.href);
-      showToast('Quote link copied to clipboard!');
-    }
+    const snapshot = {
+      quote,
+      customerName: customers.find((c) => c.id === selectedCustomerId)?.name || quote.customerName,
+      projectName: projects.find((p) => p.id === selectedProjectId)?.projectName || quote.projectName,
+      validityPeriod,
+      issuedBy: user?.name || 'Hub Interior',
+    };
+    const id = saveSharedQuote(snapshot);
+    const path = invoiceSharePath(id);
+    const url = `${window.location.origin}${path}`;
+    navigator.clipboard?.writeText(url);
+    window.open(path, '_blank', 'noopener,noreferrer');
+    showToast('Invoice opened. Link copied to clipboard.');
   };
 
   const handleGeneratePdf = () => {
-    setIsGeneratingPdf(true);
-    setTimeout(() => {
-      setIsGeneratingPdf(false);
-      window.print();
-    }, 600);
+    setShowInvoice(true);
+    setIsGeneratingPdf(false);
   };
 
   return (
@@ -847,6 +856,18 @@ function QuoteEngineContent() {
       </div>
 
       {/* Bottom Sticky Action Bar */}
+      {showInvoice && (
+        <QuoteInvoiceSheet
+          quote={quote}
+          customerName={customers.find((c) => c.id === selectedCustomerId)?.name || quote.customerName}
+          projectName={projects.find((p) => p.id === selectedProjectId)?.projectName || quote.projectName}
+          validityPeriod={validityPeriod}
+          issuedBy={user?.name || 'Hub Interior'}
+          onClose={() => setShowInvoice(false)}
+          onPrint={() => window.print()}
+        />
+      )}
+
       <QuoteBottomBar
         grandTotal={quote.grandTotal}
         designerMarginPct={quote.designerMarginPercentage ?? 24.5}
