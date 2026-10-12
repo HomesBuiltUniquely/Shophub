@@ -8,6 +8,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -82,7 +83,7 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Username or email"
-              className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900"
+              className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 caret-gray-900 placeholder:text-gray-400"
               autoComplete="username"
               autoCapitalize="none"
               autoCorrect="off"
@@ -93,15 +94,45 @@ function LoginForm() {
 
           <label className="block mt-4 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900"
-              autoComplete="current-password"
-              required
-            />
+            <div className="relative mt-1.5">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full px-3.5 py-2.5 pr-11 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 caret-gray-900 placeholder:text-gray-400"
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((open) => !open)}
+                className="absolute inset-y-0 right-0 grid w-11 place-items-center text-gray-400 hover:text-gray-800"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M3 3l18 18M10.5 10.7a2.5 2.5 0 003.8 3.2M9.9 5.2A9.8 9.8 0 0112 5c5 0 9.3 3.1 11 7.5a11.7 11.7 0 01-4.2 5.1M6.1 6.6A11.8 11.8 0 001 12.5C2.7 16.9 7 20 12 20c1.7 0 3.3-.4 4.7-1"
+                    />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M2 12.5C3.7 8.1 8 5 13 5s9.3 3.1 11 7.5C22.3 16.9 18 20 13 20s-9.3-3.1-11-7.5z"
+                    />
+                    <circle cx="13" cy="12.5" r="2.5" strokeWidth={1.8} />
+                  </svg>
+                )}
+              </button>
+            </div>
           </label>
 
           {error && (

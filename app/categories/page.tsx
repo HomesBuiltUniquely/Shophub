@@ -248,22 +248,7 @@ export default function CategoriesPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Modal State for adding new category
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [modalTargetParent, setModalTargetParent] = useState<{
-    type: TreeNode['type'];
-    id: number;
-    name: string;
-  } | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryDesc, setNewCategoryDesc] = useState('');
-  const [newCategorySlug, setNewCategorySlug] = useState('');
-  const [newMetaTitle, setNewMetaTitle] = useState('');
-  const [newMetaDesc, setNewMetaDesc] = useState('');
-  const [newTags, setNewTags] = useState<string[]>([]);
-  const [newTagDraft, setNewTagDraft] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [creatingUnder, setCreatingUnder] = useState<TreeNode | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -355,6 +340,7 @@ export default function CategoriesPage() {
   });
 
   const applyNodeToForm = (node: TreeNode) => {
+    setCreatingUnder(null);
     setSelectedNode(node);
     setCategoryName(node.name);
     setUrlSlug(node.slug || slugify(node.name));
@@ -416,10 +402,15 @@ export default function CategoriesPage() {
   }, [treeData, searchQuery]);
 
   const breadcrumbTrail = useMemo(() => {
-    if (!selectedNode) return [];
-    const trail = trailTo(treeData, selectedNode.id);
-    return trail.length ? trail : [selectedNode];
-  }, [treeData, selectedNode]);
+    const target = selectedNode || creatingUnder;
+    if (!target) return [];
+    const trail = trailTo(treeData, target.id);
+    return trail.length ? trail : [target];
+  }, [treeData, selectedNode, creatingUnder]);
+
+  const isSecondaryForm = Boolean(
+    creatingUnder || selectedNode?.type === 'secondary' || selectedNode?.type === 'sub'
+  );
 
   // ============================================================================
   // UI-ONLY ACTIONS: SAVE, DISCARD, ADD TAG, REMOVE TAG, ADD CATEGORY
@@ -433,6 +424,28 @@ export default function CategoriesPage() {
     setIsSaving(true);
     try {
       const payload = writePayload();
+      if (creatingUnder) {
+        const created =
+          creatingUnder.type === 'primary'
+            ? await createSecondaryCategory(creatingUnder.numericId, payload)
+            : await createSubCategory(creatingUnder.numericId, {
+                ...payload,
+                parentSecondaryId: creatingUnder.numericId,
+              });
+        const parentId = creatingUnder.id;
+        const mapped = mapSecondary(
+          created,
+          [...(creatingUnder.pathNames || [creatingUnder.name])],
+          creatingUnder.type === 'primary' ? 'secondary' : 'sub',
+          creatingUnder.type === 'primary' ? creatingUnder.numericId : creatingUnder.primaryId
+        );
+        if (iconUrl) writeCategoryIcon(mapped.id, iconUrl);
+        showToast(`Secondary category "${payload.name}" created.`);
+        setCreatingUnder(null);
+        setExpandedNodes((prev) => ({ ...prev, [parentId]: true }));
+        await loadCategories(mapped.numericId ? mapped.id : undefined);
+        return;
+      }
       if (!selectedNode) {
         const created = await createPrimaryCategory(payload);
         const node = mapPrimary(created);
@@ -461,10 +474,7 @@ export default function CategoriesPage() {
     }
   };
 
-  const startNewPrimary = () => {
-    setShowAddModal(false);
-    setModalTargetParent(null);
-    setSelectedNode(null);
+  const clearEditor = () => {
     setCategoryName('');
     setUrlSlug('');
     setDescription('');
@@ -476,10 +486,22 @@ export default function CategoriesPage() {
     setAssetFile(null);
     setNewTagInput('');
     setIsAddingTag(false);
+  };
+
+  const startNewPrimary = () => {
+    setCreatingUnder(null);
+    setSelectedNode(null);
+    clearEditor();
     setTimeout(() => nameInputRef.current?.focus(), 0);
   };
 
   const handleDiscard = () => {
+    if (creatingUnder) {
+      setCreatingUnder(null);
+      selectNode(creatingUnder);
+      showToast('Changes discarded.');
+      return;
+    }
     if (selectedNode) {
       selectNode(selectedNode);
       showToast('Changes discarded.');
@@ -654,70 +676,12 @@ export default function CategoriesPage() {
     showToast('Folder favicon removed.');
   };
 
-  const resetCreateForm = () => {
-    setNewCategoryName('');
-    setNewCategoryDesc('');
-    setNewCategorySlug('');
-    setNewMetaTitle('');
-    setNewMetaDesc('');
-    setNewTags([]);
-    setNewTagDraft('');
-    setNewImageUrl('');
-  };
-
   const openAddChild = (node: TreeNode) => {
-    setModalTargetParent({ type: node.type, id: node.numericId, name: node.name });
+    setCreatingUnder(node);
+    setSelectedNode(null);
     setExpandedNodes((prev) => ({ ...prev, [node.id]: true }));
-    resetCreateForm();
-    setShowAddModal(true);
-  };
-
-  const handleCreateNewCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCategoryName.trim()) {
-      showToast('Enter a category name.');
-      return;
-    }
-    const payload = {
-      name: newCategoryName.trim(),
-      description: newCategoryDesc.trim(),
-      imageUrl: newImageUrl,
-      seo: {
-        page_title: newMetaTitle.trim() || newCategoryName.trim(),
-        meta_desc: newMetaDesc.trim() || newCategoryDesc.trim(),
-        url_slug: newCategorySlug.trim() || slugify(newCategoryName),
-        keywords: newTags,
-      },
-      internalTags: newTags,
-      parentSecondaryId: modalTargetParent && modalTargetParent.type !== 'primary' ? modalTargetParent.id : undefined,
-    };
-    setIsCreating(true);
-    try {
-      if (!modalTargetParent) {
-        await createPrimaryCategory(payload);
-        showToast(`Primary category "${payload.name}" created.`);
-      } else if (modalTargetParent.type === 'primary') {
-        await createSecondaryCategory(modalTargetParent.id, payload);
-        showToast(`Secondary category "${payload.name}" created.`);
-      } else {
-        await createSubCategory(modalTargetParent.id, payload);
-        showToast(`Secondary category "${payload.name}" created under ${modalTargetParent.name}.`);
-      }
-      resetCreateForm();
-      setShowAddModal(false);
-      const parentKey = modalTargetParent
-        ? `${modalTargetParent.type === 'primary' ? 'p' : modalTargetParent.type === 'sub' ? 'sub' : 's'}-${modalTargetParent.id}`
-        : null;
-      setModalTargetParent(null);
-      if (parentKey) {
-        setExpandedNodes((prev) => ({ ...prev, [parentKey]: true }));
-      }
-      await loadCategories();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to create category');
-    } finally {
-      setIsCreating(false);
-    }
+    clearEditor();
+    setTimeout(() => nameInputRef.current?.focus(), 0);
   };
 
   const renderFolder = (node: TreeNode, depth: number) => {
@@ -730,7 +694,9 @@ export default function CategoriesPage() {
         <div
           style={{ paddingLeft: 6 + depth * 14 }}
           className={`group flex items-center gap-1 rounded-md py-1 pr-1 text-xs ${
-            isSelected ? 'bg-gray-100 font-bold text-black' : 'hover:bg-gray-50 text-gray-700'
+            isSelected || creatingUnder?.id === node.id
+              ? 'bg-gray-100 font-bold text-black'
+              : 'hover:bg-gray-50 text-gray-700'
           }`}
         >
           <button
@@ -843,24 +809,43 @@ export default function CategoriesPage() {
           {/* Top Breadcrumb & Actions */}
           <div className="flex items-center justify-between mb-2">
             <nav className="flex min-w-0 flex-1 flex-wrap items-end gap-x-1.5 gap-y-1 pr-4">
-              {selectedNode ? (
-                breadcrumbTrail.map((crumb, index) => (
-                  <span key={crumb.id} className="flex items-end gap-1.5">
-                    {index > 0 && <span className="mb-0.5 text-gray-300">›</span>}
-                    <button
-                      type="button"
-                      onClick={() => selectNode(crumb)}
-                      className={`text-left ${crumb.id === selectedNode.id ? '' : 'opacity-70 hover:opacity-100'}`}
-                    >
-                      <span className="block text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                        {levelLabel(crumb.type)}
+              {selectedNode || creatingUnder ? (
+                <>
+                  {breadcrumbTrail.map((crumb, index) => (
+                    <span key={crumb.id} className="flex items-end gap-1.5">
+                      {index > 0 && <span className="mb-0.5 text-gray-300">›</span>}
+                      <button
+                        type="button"
+                        onClick={() => selectNode(crumb)}
+                        className={`text-left ${
+                          !creatingUnder && crumb.id === selectedNode?.id ? '' : 'opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                          {levelLabel(crumb.type)}
+                        </span>
+                        <span className="block text-xs font-bold text-gray-800">
+                          {!creatingUnder && index === breadcrumbTrail.length - 1
+                            ? categoryName || crumb.name
+                            : crumb.name}
+                        </span>
+                      </button>
+                    </span>
+                  ))}
+                  {creatingUnder && (
+                    <span className="flex items-end gap-1.5">
+                      <span className="mb-0.5 text-gray-300">›</span>
+                      <span className="text-left">
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                          Secondary
+                        </span>
+                        <span className="block text-xs font-bold text-gray-800">
+                          {categoryName.trim() || 'New secondary category'}
+                        </span>
                       </span>
-                      <span className="block text-xs font-bold text-gray-800">
-                        {index === breadcrumbTrail.length - 1 ? categoryName || crumb.name : crumb.name}
-                      </span>
-                    </button>
-                  </span>
-                ))
+                    </span>
+                  )}
+                </>
               ) : (
                 <span className="text-left">
                   <span className="block text-[9px] font-bold uppercase tracking-wider text-gray-400">Primary</span>
@@ -910,18 +895,39 @@ export default function CategoriesPage() {
                 disabled={isSaving}
                 className="px-4 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
               >
-                {isSaving ? 'Saving…' : selectedNode ? 'Save Category' : 'Create primary category'}
+                {isSaving
+                  ? 'Saving…'
+                  : creatingUnder
+                    ? 'Create secondary category'
+                    : selectedNode
+                      ? 'Save Category'
+                      : 'Create primary category'}
               </button>
             </div>
           </div>
 
           {/* Heading */}
-          <h1 className={`text-3xl font-extrabold text-gray-900 tracking-tight ${selectedNode ? 'mb-8' : 'mb-2'}`}>
-            {selectedNode ? categoryName || 'Category Details' : categoryName || 'New primary category'}
+          <h1
+            className={`text-3xl font-extrabold text-gray-900 tracking-tight ${
+              selectedNode && !creatingUnder ? 'mb-8' : 'mb-2'
+            }`}
+          >
+            {creatingUnder
+              ? categoryName || 'Secondary category'
+              : selectedNode
+                ? categoryName || 'Category Details'
+                : categoryName || 'New primary category'}
           </h1>
-          {!selectedNode && (
+          {creatingUnder && (
             <p className="mb-8 text-sm text-gray-500">
-              Fill in the primary category details here, then click Create primary category. Use the + on a folder to add a secondary category in the popup.
+              Fill in the secondary category details here under “{creatingUnder.name}”, then click Create secondary
+              category.
+            </p>
+          )}
+          {!selectedNode && !creatingUnder && (
+            <p className="mb-8 text-sm text-gray-500">
+              Fill in the primary category details here, then click Create primary category. Use the + on a folder to add
+              a secondary category in this editor.
             </p>
           )}
 
@@ -942,15 +948,19 @@ export default function CategoriesPage() {
                   {/* Category Name */}
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                      {selectedNode?.type === 'secondary' || selectedNode?.type === 'sub'
-                        ? 'SECONDARY CATEGORY NAME'
-                        : 'PRIMARY CATEGORY NAME'}
+                      {isSecondaryForm ? 'SECONDARY CATEGORY NAME' : 'PRIMARY CATEGORY NAME'}
                     </label>
                     <input
                       ref={nameInputRef}
                       type="text"
                       value={categoryName}
-                      placeholder={selectedNode ? '' : 'Enter primary category name'}
+                      placeholder={
+                        creatingUnder
+                          ? 'Enter secondary category name'
+                          : selectedNode
+                            ? ''
+                            : 'Enter primary category name'
+                      }
                       onChange={(e) => {
                         setCategoryName(e.target.value);
                         setUrlSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
@@ -1209,143 +1219,6 @@ export default function CategoriesPage() {
         </main>
       </div>
 
-      {/* ========================================================================= */}
-      {/* ADD CATEGORY MODAL */}
-      {/* ========================================================================= */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Secondary category details</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              {modalTargetParent?.type === 'primary'
-                ? `Creates a secondary category under “${modalTargetParent.name}”.`
-                : `Creates a nested secondary category under “${modalTargetParent?.name || 'the selected folder'}”.`}
-            </p>
-
-            <form onSubmit={handleCreateNewCategory} className="space-y-4" autoComplete="off">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    Secondary category name
-                  </label>
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(e) => {
-                      setNewCategoryName(e.target.value);
-                      setNewCategorySlug(slugify(e.target.value));
-                      if (!newMetaTitle) setNewMetaTitle(e.target.value);
-                    }}
-                    placeholder="e.g. Walk-in Closets"
-                    className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    URL slug
-                  </label>
-                  <input
-                    type="text"
-                    value={newCategorySlug}
-                    onChange={(e) => setNewCategorySlug(e.target.value)}
-                    placeholder="walk-in-closets"
-                    className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  Description
-                </label>
-                <textarea
-                  rows={2}
-                  value={newCategoryDesc}
-                  onChange={(e) => setNewCategoryDesc(e.target.value)}
-                  placeholder="Brief description..."
-                  className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  Meta title
-                </label>
-                <input
-                  type="text"
-                  value={newMetaTitle}
-                  onChange={(e) => setNewMetaTitle(e.target.value)}
-                  className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  Meta description
-                </label>
-                <textarea
-                  rows={2}
-                  value={newMetaDesc}
-                  onChange={(e) => setNewMetaDesc(e.target.value)}
-                  placeholder="SEO description..."
-                  className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  Internal tags
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {newTags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
-                      {tag}
-                      <button type="button" onClick={() => setNewTags((prev) => prev.filter((item) => item !== tag))}>
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTagDraft}
-                    onChange={(e) => setNewTagDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const next = newTagDraft.trim().toUpperCase();
-                        if (next && !newTags.includes(next)) setNewTags((prev) => [...prev, next]);
-                        setNewTagDraft('');
-                      }
-                    }}
-                    placeholder="Add tag and press Enter"
-                    className="w-full text-xs font-medium text-gray-900 bg-white caret-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreating}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-black hover:bg-gray-800 rounded-lg shadow-xs transition-colors disabled:opacity-50"
-                >
-                  {isCreating ? 'Creating…' : 'Create secondary category'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

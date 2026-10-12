@@ -10,15 +10,9 @@ import QuoteSidebar from '@/components/quote-engine/QuoteSidebar';
 import QuoteBottomBar from '@/components/quote-engine/QuoteBottomBar';
 import { getAllPrimaryCategories, getAllSecondaryCategories } from '@/lib/api/category.service';
 import { getAllProducts } from '@/lib/api/product.service';
-import {
-  getCrmBucketCustomersAndProjects,
-  getDesignBucketCustomersAndProjects,
-  getAdminCustomersAndProjects,
-  QuoteCustomer,
-  QuoteProject,
-} from '@/lib/api/leads.service';
+import { QuoteCustomer, QuoteProject } from '@/lib/api/leads.service';
 import { getRequirementScope, transformScopeToRooms } from '@/lib/api/requirement-scope.service';
-import { useCurrentUser } from '@/lib/auth/useCurrentUser';
+import { useAuthSession } from '@/lib/auth/useCurrentUser';
 
 // Local UI-only Interfaces
 export interface Customer {
@@ -138,7 +132,7 @@ const computeTotals = (items: QuoteItemModel[], discountPct = 5) => {
 };
 
 function QuoteEngineContent() {
-  const user = useCurrentUser();
+  const { user, loading: authLoading } = useAuthSession();
   const searchParams = useSearchParams();
 
   // Role detection: URL param takes priority (for testing/portal redirection), then user session role, default admin
@@ -291,21 +285,18 @@ function QuoteEngineContent() {
       return;
     }
 
+    if (authLoading) return;
+
     const loadFromLeads = async () => {
       try {
         setIsLoadingProjects(true);
-        let bucketData: { customers: QuoteCustomer[]; projects: QuoteProject[] };
+        const res = await fetch('/api/quote/bucket');
+        const bucketData: { customers: QuoteCustomer[]; projects: QuoteProject[] } = res.ok
+          ? await res.json()
+          : { customers: [], projects: [] };
 
-        if (isCrm) {
-          bucketData = await getCrmBucketCustomersAndProjects(user?.crmToken);
-        } else if (isDesigner) {
-          bucketData = await getDesignBucketCustomersAndProjects(user?.designToken);
-        } else {
-          bucketData = await getAdminCustomersAndProjects();
-        }
-
-        setCustomers(bucketData.customers);
-        setProjects(bucketData.projects);
+        setCustomers(bucketData.customers || []);
+        setProjects(bucketData.projects || []);
 
         if (bucketData.customers.length > 0) {
           const paramLeadId = searchParams?.get('leadId') ? Number(searchParams.get('leadId')) : null;
@@ -332,7 +323,7 @@ function QuoteEngineContent() {
     };
 
     loadFromLeads();
-  }, [isEnterprise, isCrm, isDesigner, user, searchParams]);
+  }, [authLoading, isEnterprise, isCrm, isDesigner, user, searchParams]);
 
   // ============================================================================
   // Load Requirement Scope & Rooms from CRM API whenever active project changes
