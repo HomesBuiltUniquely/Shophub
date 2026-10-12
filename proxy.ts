@@ -6,7 +6,7 @@ import {
   SESSION_COOKIE,
 } from '@/lib/auth/session';
 
-const PUBLIC_PATHS = ['/', '/login', '/api/auth/login', '/api/auth/logout'];
+const PUBLIC_PATHS = ['/', '/login', '/quote-invoice', '/api/auth/login', '/api/auth/logout'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
