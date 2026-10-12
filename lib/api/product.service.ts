@@ -60,8 +60,23 @@ async function getProductsFromLocalApi(
 export const getAllProducts = async (
   page = 0,
   size = 50,
-  _sort = 'prodId,asc'
+  sort = 'prodId,asc'
 ): Promise<PageResponse<ProdDataResDTO>> => {
+  try {
+    const response = await apiClient.get<any>('/products/getAllProducts', {
+      params: {
+        page,
+        size,
+        sort,
+      },
+    });
+    if (response.data && response.data.content) {
+      return response.data;
+    }
+  } catch (error: any) {
+    console.warn('[product.service] Live Spring Boot catalog offline, falling back to local MySQL API:', error.message);
+  }
+
   const localPage = await getProductsFromLocalApi(page, size);
   if (localPage) {
     return localPage;
@@ -83,8 +98,8 @@ export const fetchCatalogProducts = async (): Promise<any[]> => {
       return data;
     }
     return [];
-  } catch (err) {
-    console.error('Failed to fetch catalog products:', err);
+  } catch (err: any) {
+    console.warn('Failed to fetch catalog products (using fallback):', err.message);
     return [];
   }
 };
@@ -128,8 +143,8 @@ export const getProductById = async (prodId: number | string): Promise<ProdDataR
     if (response.status >= 200 && response.status < 300 && response.data) {
       return response.data;
     }
-  } catch {
-    // Remote product endpoint is down — use local MySQL.
+  } catch (error: any) {
+    console.warn(`[product.service] getProductById(${prodId}) database query failed:`, error.message);
   }
 
   return getProductFromLocalApi(prodId);

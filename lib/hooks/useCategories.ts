@@ -58,13 +58,13 @@ export const useCategories = (): UseCategoriesReturn => {
         if (primaryRes.status === 'fulfilled') {
           setPrimaryCategories(primaryRes.value);
         } else {
-          console.error('Primary category fetch error:', primaryRes.reason);
+          console.warn('Primary category fetch error:', primaryRes.reason);
         }
 
         if (secondaryRes.status === 'fulfilled') {
           setSecondaryCategories(secondaryRes.value);
         } else {
-          console.error('Secondary category fetch error:', secondaryRes.reason);
+          console.warn('Secondary category fetch error:', secondaryRes.reason);
         }
 
         if (primaryRes.status === 'rejected' && secondaryRes.status === 'rejected') {
@@ -75,7 +75,7 @@ export const useCategories = (): UseCategoriesReturn => {
     } catch (err: any) {
       const apiError = err as ApiError;
       setError(apiError.message || 'Failed to fetch categories');
-      console.error('Category fetch error:', err);
+      console.warn('Category fetch error:', err);
     } finally {
       setIsLoading(false);
     }

@@ -184,6 +184,8 @@ export interface QuotationSummaryItem {
   totalAmount: number;
   totalAmountFormatted: string;
   isLatest?: boolean;
+  quoteUrl?: string;
+  pdfUrl?: string;
 }
 
 export interface QuoteRoomItem {

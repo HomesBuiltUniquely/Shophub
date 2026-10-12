@@ -124,7 +124,7 @@ export function useSingleOffering(prodId: string | number = 1): SingleOfferingSt
 
       setProduct(enrichedProd);
     } catch (err: any) {
-      console.error(`[useSingleOffering] Error loading product (${prodId}):`, err);
+      console.warn(`[useSingleOffering] Error loading product (${prodId}):`, err);
       setError(err?.message || 'Failed to load product details');
     } finally {
       setIsLoading(false);

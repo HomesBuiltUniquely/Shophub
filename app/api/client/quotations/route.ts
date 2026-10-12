@@ -148,6 +148,10 @@ export async function GET(request: NextRequest) {
         status = isLeadApproved ? 'Approved' : 'Pending Approval';
       }
 
+      const rowQuoteId = data.quoteID || row.quote_id || row.id || '70877';
+      const itemQuoteUrl = data.quoteLink || data.quoteUrl || `https://design.hubinterior.com/quote/${rowQuoteId}`;
+      const itemPdfUrl = data.pdfUrl || leadQuoteLink || itemQuoteUrl;
+
       const summaryItem: QuotationSummaryItem = {
         id: `quote-${data.quoteID || row.quote_id || row.id}`,
         quoteNumber,
@@ -157,6 +161,8 @@ export async function GET(request: NextRequest) {
         totalAmount,
         totalAmountFormatted: `₹${totalAmount.toLocaleString('en-IN')}`,
         isLatest,
+        quoteUrl: itemQuoteUrl,
+        pdfUrl: itemPdfUrl,
       };
 
       return {

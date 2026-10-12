@@ -152,8 +152,8 @@ export const getAllPrimaryCategories = async (): Promise<PrimaryCategory[]> => {
     if (response.status >= 200 && response.status < 300) {
       return unwrapArray(response.data);
     }
-  } catch {
-    // Remote category API is down — use local catalog.
+  } catch (error: any) {
+    console.warn('[category.service] getAllPrimaryCategories database query failed (using fallback):', error.message);
   }
   return getCategoriesFromLocalProducts('primary');
 };
@@ -173,7 +173,7 @@ export const getPrimaryCategoryById = async (
       return unwrapEntity(response.data);
     }
   } catch (error: any) {
-    console.error(`[category.service] getPrimaryCategoryById(${primaryCategoryId}) database query failed:`, error.message);
+    console.warn(`[category.service] getPrimaryCategoryById(${primaryCategoryId}) database query failed:`, error.message);
   }
   return null;
 };
@@ -188,8 +188,8 @@ export const getAllSecondaryCategories = async (): Promise<SecondaryCategory[]> 
     if (response.status >= 200 && response.status < 300) {
       return unwrapArray(response.data);
     }
-  } catch {
-    // Remote category API is down — use local catalog.
+  } catch (error: any) {
+    console.warn('[category.service] getAllSecondaryCategories database query failed (using fallback):', error.message);
   }
   return getCategoriesFromLocalProducts('secondary');
 };
@@ -210,7 +210,7 @@ export const getCategoriesByPrimary = async (
       return unwrapArray(response.data);
     }
   } catch (error: any) {
-    console.error(
+    console.warn(
       `[category.service] getCategoriesByPrimary(${primaryCategoryId}) database query failed:`,
       error.message
     );
@@ -233,7 +233,7 @@ export const getSecondaryCategoryById = async (
       return unwrapEntity(response.data);
     }
   } catch (error: any) {
-    console.error(
+    console.warn(
       `[category.service] getSecondaryCategoryById(${secondaryCategoryId}) database query failed:`,
       error.message
     );

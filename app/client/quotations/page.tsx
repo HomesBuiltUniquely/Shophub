@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   ClientDashboardProvider,
   useClientDashboard,
@@ -16,6 +17,7 @@ import ActiveQuoteDetailCard from '@/components/client/quotations/ActiveQuoteDet
 import QuickActionsCard from '@/components/client/quotations/QuickActionsCard';
 import QuoteValidityCard from '@/components/client/quotations/QuoteValidityCard';
 import CompareRevisionsCard from '@/components/client/quotations/CompareRevisionsCard';
+import OfferingsQuotationView from '@/components/client/quotations/OfferingsQuotationView';
 
 import ApproveQuoteModal from '@/components/client/quotations/ApproveQuoteModal';
 import RequestChangesModal from '@/components/client/quotations/RequestChangesModal';
@@ -24,9 +26,17 @@ import FullHistoryModal from '@/components/client/quotations/FullHistoryModal';
 
 import { QuotationsPageData, ActiveQuoteDetail, QuotationSummaryItem } from '@/lib/client/types';
 
+type QuotationType = 'interior' | 'offerings';
+
 function QuotationsContent() {
   const { leadId, openContactModal } = useClientDashboard();
 
+  const searchParams = useSearchParams();
+
+  // Honour ?tab=offerings when navigating from the offering detail page
+  const [quotationType, setQuotationType] = useState<QuotationType>(
+    searchParams.get('tab') === 'offerings' ? 'offerings' : 'interior'
+  );
   const [pageData, setPageData] = useState<QuotationsPageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -219,85 +229,148 @@ function QuotationsContent() {
                 Quotations
               </h1>
               <p className="text-sm text-gray-500 mt-1 max-w-2xl font-normal">
-                Review, compare, and approve your project estimates with full transparency.
+                {quotationType === 'interior'
+                  ? 'Review, compare, and approve your project estimates with full transparency.'
+                  : 'Your catalog selections — grouped by room and ready to submit to your Lead Designer.'}
               </p>
             </div>
 
-            {/* Top Right Action Buttons matching Screenshot 1 */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* View Full History */}
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-white hover:bg-[#FAF7F2] text-gray-800 text-xs font-bold py-2.5 px-4 rounded-full border border-gray-200/80 shadow-2xs hover:border-gray-300 transition-all cursor-pointer"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>View Full History</span>
-              </button>
+            {/* Top Right Action Buttons */}
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-end">
 
-              {/* Export All (CSV) */}
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="inline-flex items-center gap-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold py-2.5 px-4 rounded-full shadow-xs active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>Export All (CSV)</span>
-              </button>
+              {/* ── Quotation Type Toggle ── */}
+              <div className="flex items-center bg-white border border-gray-200/80 rounded-full p-1 shadow-2xs gap-1">
+                {/* Interior Quotation */}
+                <button
+                  type="button"
+                  onClick={() => setQuotationType('interior')}
+                  className={`inline-flex items-center gap-1.5 text-xs font-bold py-1.5 px-3.5 rounded-full transition-all cursor-pointer ${
+                    quotationType === 'interior'
+                      ? 'bg-black text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Interior Quotation</span>
+                </button>
+
+                {/* Offerings Quotation */}
+                <button
+                  type="button"
+                  onClick={() => setQuotationType('offerings')}
+                  className={`inline-flex items-center gap-1.5 text-xs font-bold py-1.5 px-3.5 rounded-full transition-all cursor-pointer ${
+                    quotationType === 'offerings'
+                      ? 'bg-black text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span>Offerings Quotation</span>
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-200" />
+
+              {/* View Full History — only relevant for interior */}
+              {quotationType === 'interior' && (
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryModalOpen(true)}
+                  className="inline-flex items-center gap-2 bg-white hover:bg-[#FAF7F2] text-gray-800 text-xs font-bold py-2.5 px-4 rounded-full border border-gray-200/80 shadow-2xs hover:border-gray-300 transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>View Full History</span>
+                </button>
+              )}
+
+              {/* Export All (CSV) — only for interior */}
+              {quotationType === 'interior' && (
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="inline-flex items-center gap-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold py-2.5 px-4 rounded-full shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Export All (CSV)</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Section 1: Recent Quotations Table Card */}
-          <RecentQuotationsCard
-            quotations={filteredQuotations}
-            selectedQuoteNumber={selectedQuoteNumber}
-            onSelectQuote={handleSelectQuote}
-          />
+          {/* ── INTERIOR QUOTATION VIEW ─────────────────────────── */}
+          {quotationType === 'interior' && (
+            <>
+              {/* Section 1: Recent Quotations Table Card */}
+              <RecentQuotationsCard
+                quotations={filteredQuotations}
+                selectedQuoteNumber={selectedQuoteNumber}
+                onSelectQuote={handleSelectQuote}
+                onViewQuote={(quote) => {
+                  const targetUrl =
+                    quote.pdfUrl || quote.quoteUrl || `https://design.hubinterior.com/quote/${quote.quoteNumber}`;
+                  if (typeof window !== 'undefined') {
+                    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                  }
+                  showToast(`Opening PDF for quotation ${quote.quoteNumber}...`);
+                }}
+              />
 
-          {/* Section 2: Active Quote Detail (Left) + Quick Actions / Validity / Comparison (Right) */}
-          {activeQuote && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
-              {/* Left Column (8 of 12 cols): Active Quote Detail */}
-              <div className="lg:col-span-8 flex flex-col">
-                <ActiveQuoteDetailCard
-                  quote={activeQuote}
-                  isApproved={isApproved}
-                  onApproveClick={() => setIsApproveModalOpen(true)}
-                />
-              </div>
+              {/* Section 2: Active Quote Detail (Left) + Quick Actions / Validity / Comparison (Right) */}
+              {activeQuote && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+                  {/* Left Column (8 of 12 cols): Active Quote Detail */}
+                  <div className="lg:col-span-8 flex flex-col">
+                    <ActiveQuoteDetailCard
+                      quote={activeQuote}
+                      isApproved={isApproved}
+                      onApproveClick={() => setIsApproveModalOpen(true)}
+                    />
+                  </div>
 
-              {/* Right Column (4 of 12 cols): Quick Actions, Validity, Revisions */}
-              <div className="lg:col-span-4 flex flex-col gap-6">
-                {/* 1. Quick Actions Card */}
-                <QuickActionsCard
-                  pdfUrl={activeQuote.pdfUrl}
-                  quoteUrl={activeQuote.quoteUrl}
-                  onRequestChanges={() => setIsChangesModalOpen(true)}
-                  onShareQuote={() => {
-                    if (typeof window !== 'undefined') {
-                      navigator.clipboard.writeText(activeQuote.quoteUrl || window.location.href);
-                      showToast('Live quotation link copied to clipboard!');
-                    }
-                  }}
-                />
+                  {/* Right Column (4 of 12 cols): Quick Actions, Validity, Revisions */}
+                  <div className="lg:col-span-4 flex flex-col gap-6">
+                    {/* 1. Quick Actions Card */}
+                    <QuickActionsCard
+                      pdfUrl={activeQuote.pdfUrl}
+                      quoteUrl={activeQuote.quoteUrl}
+                      onRequestChanges={() => setIsChangesModalOpen(true)}
+                      onShareQuote={() => {
+                        if (typeof window !== 'undefined') {
+                          navigator.clipboard.writeText(activeQuote.quoteUrl || window.location.href);
+                          showToast('Live quotation link copied to clipboard!');
+                        }
+                      }}
+                    />
 
-                {/* 2. Quote Validity Card */}
-                <QuoteValidityCard
-                  validUntil={activeQuote.validUntil}
-                  validityNote={activeQuote.validityNote}
-                />
+                    {/* 2. Quote Validity Card */}
+                    <QuoteValidityCard
+                      validUntil={activeQuote.validUntil}
+                      validityNote={activeQuote.validityNote}
+                    />
 
-                {/* 3. Compare Revisions Card */}
-                <CompareRevisionsCard
-                  comparison={activeQuote.revisionComparison}
-                  onViewDetailedReport={() => setIsComparisonModalOpen(true)}
-                />
-              </div>
-            </div>
+                    {/* 3. Compare Revisions Card */}
+                    <CompareRevisionsCard
+                      comparison={activeQuote.revisionComparison}
+                      onViewDetailedReport={() => setIsComparisonModalOpen(true)}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── OFFERINGS QUOTATION VIEW ────────────────────────────── */}
+          {quotationType === 'offerings' && (
+            <OfferingsQuotationView onShowToast={showToast} />
           )}
 
           {/* Footer */}

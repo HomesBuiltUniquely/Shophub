@@ -31,7 +31,7 @@ function OfferingCard({ offering }: { offering: OfferingResponse }) {
   return (
     <button
       type="button"
-      onClick={() => router.push(`/offerings/single_offering?id=${offering.prodId || '1'}`)}
+      onClick={() => router.push(`/client/offerings/detail?id=${offering.prodId || '1'}`)}
       className="text-left bg-white rounded-[24px] border border-black/[0.04] shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
     >
       <div className="h-44 bg-[#F4EFE6] flex items-center justify-center overflow-hidden">
