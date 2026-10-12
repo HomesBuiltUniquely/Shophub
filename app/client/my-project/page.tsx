@@ -29,8 +29,10 @@ function MyProjectContent() {
     let cancelled = false;
     const fetchProject = async () => {
       try {
-        const leadId = dashboardData?.profile?.leadId || '462';
-        const res = await fetch(`/api/client/project?leadId=${encodeURIComponent(leadId)}`);
+        const endpoint = dashboardData?.profile?.leadId
+          ? `/api/client/project?leadId=${encodeURIComponent(dashboardData.profile.leadId)}`
+          : `/api/client/project`;
+        const res = await fetch(endpoint);
         const json = await res.json();
         if (!cancelled && json?.success && json?.data) {
           setProjectData(json.data);

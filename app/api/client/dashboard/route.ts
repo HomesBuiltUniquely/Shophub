@@ -8,14 +8,36 @@ import {
   getDesignModulePaymentSummary,
 } from '@/lib/api/erp-client';
 import { mapErpToDashboard } from '@/lib/client/erpMapper';
+import { resolveClientUser, buildClientInitialDashboard } from '@/lib/client/userLeadResolver';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '2399';
-    const leadId = searchParams.get('leadId') || defaultLeadId;
+    const paramLeadId = searchParams.get('leadId');
+
+    // 1. Resolve logged-in client from session cookies
+    const clientUser = await resolveClientUser(request);
+
+    // Determine the effective lead ID:
+    // Explicit query param -> user's assigned leadId -> fallback (only if no logged-in user)
+    const effectiveLeadId =
+      paramLeadId ||
+      clientUser?.leadId ||
+      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691' : null);
+
+    // If the logged-in client has no CRM lead assigned yet, show their clean personalized initial portal
+    if (!effectiveLeadId && clientUser) {
+      const initialData = buildClientInitialDashboard(clientUser);
+      return NextResponse.json({
+        success: true,
+        data: initialData,
+        source: 'user-profile',
+      });
+    }
+
+    const leadId = effectiveLeadId || '1691';
 
     // Parallel fetch from project-erp and DesignModule with graceful settled error handling
     const [leadRes, pipelineRes, quoteRes, paymentRes, appointmentsRes, designPaymentRes] =
@@ -46,6 +68,16 @@ export async function GET(request: NextRequest) {
       },
       leadId
     );
+
+    // If a logged-in user exists, ensure their authenticated profile overrides any mock or stale CRM lead names
+    if (clientUser) {
+      dashboardData.profile.name = clientUser.fullName;
+      dashboardData.profile.email = clientUser.email;
+      dashboardData.profile.phone = clientUser.phone;
+      dashboardData.profile.clientId = clientUser.clientId;
+      dashboardData.profile.propertyDetails = clientUser.propertyDetails;
+      dashboardData.profile.propertyType = clientUser.propertyType;
+    }
 
     return NextResponse.json({
       success: true,

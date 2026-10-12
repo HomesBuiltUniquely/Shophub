@@ -43,14 +43,20 @@ export async function ensureAuthSchema() {
     await pool.query(`ALTER TABLE product ADD COLUMN created_by BIGINT NULL`);
   }
 
+  const [userCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM user LIKE 'lead_id'`);
+  if (userCols.length === 0) {
+    await pool.query(`ALTER TABLE user ADD COLUMN lead_id VARCHAR(64) NULL`);
+  }
+
   for (const demo of DEMO_USERS) {
     const hash = await hashPassword(demo.password);
+    const demoLeadId = demo.email === 'client@hubinterior.com' ? '1691' : null;
     await pool.query(
       `INSERT INTO user (
-        uuid, email, password, first_name, last_name, role, brand_name, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE role = VALUES(role), brand_name = VALUES(brand_name)`,
-      [demo.uuid, demo.email, hash, demo.first_name, demo.last_name, demo.role, demo.brand_name]
+        uuid, email, password, first_name, last_name, role, brand_name, lead_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ON DUPLICATE KEY UPDATE role = VALUES(role), brand_name = VALUES(brand_name), lead_id = COALESCE(VALUES(lead_id), lead_id)`,
+      [demo.uuid, demo.email, hash, demo.first_name, demo.last_name, demo.role, demo.brand_name, demoLeadId]
     );
     await pool.query(
       `INSERT INTO login (username, password, role, logintime)

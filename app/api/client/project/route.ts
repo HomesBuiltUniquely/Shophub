@@ -3,25 +3,38 @@ import { getLeadDetails } from '@/lib/api/erp-client';
 import { ProjectPageData } from '@/lib/client/types';
 import { getQuoteRoomsForLead } from '@/lib/db/designmod';
 
+import { resolveClientUser } from '@/lib/client/userLeadResolver';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691';
-    const leadId = searchParams.get('leadId') || defaultLeadId;
+    const paramLeadId = searchParams.get('leadId');
+
+    // Resolve authenticated client
+    const clientUser = await resolveClientUser(request);
+
+    const effectiveLeadId =
+      paramLeadId ||
+      clientUser?.leadId ||
+      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691' : null);
+
+    const leadId = effectiveLeadId || '1691';
 
     let lead: any = null;
-    try {
-      lead = await getLeadDetails(leadId);
-    } catch {
-      lead = null;
+    if (effectiveLeadId) {
+      try {
+        lead = await getLeadDetails(leadId);
+      } catch {
+        lead = null;
+      }
     }
 
     const isLive = Boolean(lead && lead.id);
 
     // Format customer name & ID
-    const rawName = lead?.name || 'Varnika';
+    const rawName = clientUser ? clientUser.fullName : (lead?.name || 'Varnika');
     const cleanName =
       rawName === rawName.toUpperCase()
         ? rawName
@@ -37,13 +50,16 @@ export async function GET(request: NextRequest) {
       String(leadId).includes('2341');
 
     const projectId =
+      clientUser?.clientId ||
       lead?.customerId ||
       lead?.customer_id ||
       (lead?.leadId || lead?.lead_identifier ? `BLR-${String(lead.leadId || lead.lead_identifier).replace(/\D/g, '')}` : (isVarnika ? 'BLR-A1691' : 'BLR-A0462'));
 
-    const propertyTitle = isVarnika
-      ? '2 BHK Apartment • Bangalore 560076 (Renovation)'
-      : '4 BHK Apartment • Bangalore 560043';
+    const propertyTitle = clientUser
+      ? `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`
+      : (isVarnika
+          ? '2 BHK Apartment • Bangalore 560076 (Renovation)'
+          : '4 BHK Apartment • Bangalore 560043');
 
     // Lead Designer from CRM or fallback
     const designerName = lead?.designerName || lead?.designer_name || (isVarnika ? 'Seher' : 'Meghana');
@@ -123,7 +139,47 @@ export async function GET(request: NextRequest) {
 
     const sitePhotos = dynamicRooms && dynamicRooms.length > 0 ? dynamicRooms : defaultRooms;
 
-    const readinessItems = isVarnika
+    const isClient99903 =
+      cleanName.toLowerCase().includes('client') ||
+      String(leadId).includes('99903') ||
+      String(leadId).includes('KJT5T5P7EF') ||
+      String(lead?.id) === '99903';
+
+    const isStage10Payment =
+      isClient99903 ||
+      lead?.stage?.milestoneStage === '10% PAYMENT' ||
+      lead?.stage?.stage === '10% PAYMENT';
+
+    const currentPhaseTitle = isStage10Payment
+      ? '10% Payment & Site Masking Prep'
+      : isVarnika
+      ? 'Modular Carpentry Installation'
+      : 'Modular Carpentry Installation';
+
+    const overallProgressPercentage = isStage10Payment ? 24 : isVarnika ? 72 : 68;
+
+    const readinessItems = isStage10Payment
+      ? [
+          {
+            name: 'DQC1 DWG & Quotation',
+            percentage: 100,
+            subtext: 'Quote #75774 (Q-53993-019) verified & approved for ₹13,33,946.',
+            isComplete: true,
+          },
+          {
+            name: '10% Design Advance',
+            percentage: 50,
+            subtext: 'Sales 10% cleared (₹1,33,395). Design 10% active (₹1,33,395).',
+            isComplete: false,
+          },
+          {
+            name: 'D2 Site Masking & Prep',
+            percentage: 0,
+            subtext: 'Site masking scheduled once 10% milestone is confirmed.',
+            isComplete: false,
+          },
+        ]
+      : isVarnika
       ? [
           {
             name: 'Material Sourcing',
@@ -165,7 +221,12 @@ export async function GET(request: NextRequest) {
           },
         ];
 
-    const nextBigStep = isVarnika
+    const nextBigStep = isStage10Payment
+      ? {
+          title: 'D2 Site Masking & Files Upload',
+          startDate: 'Oct 12 - Oct 15',
+        }
+      : isVarnika
       ? {
           title: 'Dispatch to Site for Installation',
           startDate: 'Starting Sept 28, 2026',
@@ -175,7 +236,53 @@ export async function GET(request: NextRequest) {
           startDate: 'Starting June 24, 2024',
         };
 
-    const timelineMilestones = isVarnika
+    const timelineMilestones = isStage10Payment
+      ? [
+          {
+            id: 'step-1',
+            title: 'Booking Closure (10%)',
+            date: 'Completed',
+            description: 'Sales token of ₹1,33,395 collected and booking verified.',
+            status: 'completed' as const,
+          },
+          {
+            id: 'step-2',
+            title: 'Milestone 02: DQC1 Review',
+            date: 'Oct 12',
+            description: 'DQC 1 submission - dwg + quotation approved on time.',
+            status: 'completed' as const,
+          },
+          {
+            id: 'step-3',
+            title: 'Milestone 03: 10% Payment',
+            date: 'Oct 12 - Oct 15',
+            description: 'Design module 10% payment brings cumulative to 20% (₹1,33,395 due now).',
+            status: 'active' as const,
+            estCompletion: 'Due Oct 15',
+          },
+          {
+            id: 'step-4',
+            title: 'Milestone 04: D2 Site Masking',
+            date: 'Oct 16',
+            description: 'Site masking request raise and physical dimensions review.',
+            status: 'upcoming' as const,
+          },
+          {
+            id: 'step-5',
+            title: 'Milestone 05: DQC2 Final Sign-off',
+            date: 'Oct 28',
+            description: 'Material finishes freeze and 40% design sign-off.',
+            status: 'upcoming' as const,
+          },
+          {
+            id: 'step-6',
+            title: 'Milestone 06: Push to Production',
+            date: 'Nov 10',
+            description: 'Factory manufacturing and CNC cutting dispatch.',
+            status: 'upcoming' as const,
+          },
+        ]
+      : isVarnika
       ? [
           {
             id: 'step-1',
@@ -287,18 +394,22 @@ export async function GET(request: NextRequest) {
       projectId,
       clientName: cleanName,
       propertyTitle,
-      currentPhaseTitle: 'Modular Carpentry Installation',
-      overallProgressPercentage: 68,
+      currentPhaseTitle,
+      overallProgressPercentage,
       sitePhotos,
       readinessItems,
       nextBigStep,
       timelineMilestones,
       teamContacts,
       latestRevision: {
-        fileName,
-        fileSize: isVarnika ? '5.0 MB' : '12.4 MB',
-        updatedText: isVarnika ? 'Quote #70877 Approved • 5.0 MB' : 'Updated yesterday • 12.4 MB',
-        downloadUrl,
+        fileName: isClient99903 ? 'CLIENT_QUOTATION_Q-53993-019.pdf' : fileName,
+        fileSize: isClient99903 ? '4.8 MB' : isVarnika ? '5.0 MB' : '12.4 MB',
+        updatedText: isClient99903
+          ? 'Quote #75774 (Q-53993-019) • Approved'
+          : isVarnika
+          ? 'Quote #70877 Approved • 5.0 MB'
+          : 'Updated yesterday • 12.4 MB',
+        downloadUrl: isClient99903 ? 'https://design.hubinterior.com/quote/75774' : downloadUrl,
       },
       isLiveBackend: isLive,
       lastUpdated: new Date().toISOString(),

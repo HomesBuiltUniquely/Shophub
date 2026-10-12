@@ -30,7 +30,7 @@ export async function authenticateUser(email: string, password: string) {
   const normalized = email.trim().toLowerCase();
 
   const [userRows]: any = await pool.query(
-    `SELECT uuid, email, password, first_name, last_name, role, brand_name
+    `SELECT uuid, email, password, first_name, last_name, role, brand_name, lead_id
      FROM user
      WHERE LOWER(email) = ?
      LIMIT 1`,
@@ -70,6 +70,7 @@ export async function authenticateUser(email: string, password: string) {
     name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'User',
     role: mapped,
     brand: row.brand_name || undefined,
+    leadId: row.lead_id ? String(row.lead_id) : undefined,
     loginSource: 'catalog',
   };
 

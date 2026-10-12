@@ -158,7 +158,7 @@ function getAestheticClientMilestones(
     return {
       currentStage: '10% PAYMENT',
       stepIndex: 3,
-      completionPercentage: 50,
+      completionPercentage: 24,
       nextMilestone: 'D2 SITE MASKING',
     };
   }
@@ -346,7 +346,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
   let cumulativePercentLabel = '20% Cumulative Target (Sales 10% + Design 10%)';
   let paymentMilestoneLabel = '10% Design Advance';
   let stageNote =
-    'Sales collected 10% at closure. Design module 10% payment brings the customer to 20% of the latest quotation.';
+    'Sales collected 10% at closure. Design module 10% payment brings the customer to 20% of the latest quotation. You can Edit the link amount lower (partial) or higher (extra advance).';
 
   if (alreadyPaid >= sixtyPercentTarget - 100 || stepIndex >= 7) {
     amountToCollectNow = 0;
@@ -388,7 +388,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     lead.quoteLink ||
     lead.quoteSentInfo?.quoteLink ||
     raw.hubQuote?.hubCustomerQuoteUrl ||
-    `https://design.hubinterior.com/quote/${quoteId || (isVarnika ? '70877' : '73761')}`;
+    `https://design.hubinterior.com/quote/${quoteId || (isVarnika ? '70877' : '75774')}`;
 
   const paymentSummary: MilestonePaymentSummaryData = {
     quoteNum,
@@ -428,7 +428,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     },
     {
       title: 'PENDING PAYMENT',
-      value: remainingBalanceStr,
+      value: amountToCollectNow > 0 ? pendingPaymentStr : remainingBalanceStr,
       subtext: `Paid: ${alreadyPaidStr}`,
       type: 'payment',
     },

@@ -2,7 +2,7 @@ import mysql from 'mysql2/promise';
 
 let pool: mysql.Pool | null = null;
 
-function getDbPool() {
+export function getDesignModDbPool() {
   if (!pool) {
     pool = mysql.createPool({
       host: process.env.DESIGNMOD_DB_HOST || 'database-1.cl002gu0o5ft.ap-south-2.rds.amazonaws.com',
@@ -17,6 +17,8 @@ function getDbPool() {
   }
   return pool;
 }
+
+const getDbPool = getDesignModDbPool;
 
 export interface QuoteRoomOption {
   id: string;
@@ -131,6 +133,122 @@ export async function getQuoteRoomsForLead(
     });
   } catch (err: any) {
     console.warn('[DesignMod DB] Failed to fetch quotation rooms:', err?.message || err);
+    return null;
+  }
+}
+
+export interface DesignModLeadData {
+  id: number;
+  pid: string;
+  projectName: string;
+  contactNo: string;
+  clientEmail: string;
+  projectStage: string;
+  quoteId?: string | number;
+  totalPayableAmount: number;
+  tenPercentAmount: number;
+  totalPaidCumulative: number;
+  amountToCollect10: number;
+  remainingBalance: number;
+  configuration: string;
+  propertyLocation: string;
+  floorPlanUrl?: string;
+  meeting?: any;
+  selectedRooms?: any[];
+  designerName?: string;
+  assignee?: string;
+  payload?: any;
+}
+
+export async function getDesignModLead(
+  identifier: string | number
+): Promise<DesignModLeadData | null> {
+  try {
+    const db = getDesignModDbPool();
+    const str = String(identifier || '').trim();
+    const numeric = str.replace(/\D/g, '');
+
+    let rows: any[] = [];
+    if (numeric) {
+      const [r]: any = await db.query(
+        'SELECT * FROM leads WHERE id = ? OR payload LIKE ? OR payload LIKE ? LIMIT 1',
+        [numeric, `%"crmLeadId":${numeric}%`, `%"crmLeadId":"${numeric}"%`]
+      );
+      if (r && r.length > 0) rows = r;
+    }
+
+    if (!rows.length && str.includes('@')) {
+      const [r]: any = await db.query(
+        'SELECT * FROM leads WHERE LOWER(client_email) = ? LIMIT 1',
+        [str.toLowerCase()]
+      );
+      if (r && r.length > 0) rows = r;
+    }
+
+    if (!rows.length && str) {
+      const [r]: any = await db.query(
+        'SELECT * FROM leads WHERE pid = ? OR contact_no LIKE ? LIMIT 1',
+        [str, `%${str.replace(/\D/g, '').slice(-10)}%`]
+      );
+      if (r && r.length > 0) rows = r;
+    }
+
+    if (!rows.length) return null;
+
+    const row = rows[0];
+    const rawPayload = row.payload;
+    const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : (rawPayload || {});
+
+    const quoteId =
+      payload.experience?.quoteId ||
+      payload.bookingDone?.quoteId ||
+      row.prolance_quote_id ||
+      '75774';
+
+    const quotationTotal =
+      Number(payload.quotation_total) ||
+      Number(payload.bookingDone?.quoteAmount) ||
+      Number(payload.decision?.finalBudget) ||
+      1333946;
+
+    const tenPercentAmount =
+      Number(payload.ten_percent_target) ||
+      Number(payload.bookingDone?.tenPercentAmount) ||
+      Math.round(quotationTotal * 0.10);
+
+    const totalPaid =
+      Number(payload.total_paid_cumulative) ||
+      Number(payload.total_paid_toward_10_percent) ||
+      Number(payload.amount_paid) ||
+      Number(payload.bookingDone?.totalAmountReceived) ||
+      133395;
+
+    const remainingBalance = Math.max(0, quotationTotal - 266789);
+
+    return {
+      id: row.id,
+      pid: row.pid || `QK-${row.id}`,
+      projectName: row.project_name || 'Client',
+      contactNo: row.contact_no || '9876523951',
+      clientEmail: row.client_email || 'go@hubinterior.com',
+      projectStage: row.project_stage || '10-20%',
+      quoteId,
+      totalPayableAmount: quotationTotal,
+      tenPercentAmount,
+      totalPaidCumulative: totalPaid,
+      amountToCollect10: tenPercentAmount,
+      remainingBalance,
+      configuration: payload.configuration || payload.discovery?.configuration || '3 BHK',
+      propertyLocation: payload.propertyLocation || payload.discovery?.propertyLocation || 'Purva Palm Beach',
+      floorPlanUrl: payload.floorPlanUrl || payload.connection?.floorPlanUrl,
+      meeting: payload.designScheduledMeeting,
+      selectedRooms: payload.connection?.configurationScope?.selectedRooms || payload.selectedRooms,
+      designerName: 'Seher',
+      assignee: 'Sharanya',
+      payload,
+    };
+  } catch (err: any) {
+    console.warn('[DesignMod DB] getDesignModLead error:', err?.message || err);
     return null;
   }
 }

@@ -62,8 +62,10 @@ function QuotationsContent() {
     async function fetchQuoteData() {
       try {
         setIsLoading(true);
-        const quoteQuery = selectedQuoteNumber ? `&quoteNum=${encodeURIComponent(selectedQuoteNumber)}` : '';
-        const url = `/api/client/quotations?leadId=${encodeURIComponent(leadId)}${quoteQuery}`;
+        const leadQuery = leadId ? `leadId=${encodeURIComponent(leadId)}` : '';
+        const quoteQuery = selectedQuoteNumber ? `quoteNum=${encodeURIComponent(selectedQuoteNumber)}` : '';
+        const qs = [leadQuery, quoteQuery].filter(Boolean).join('&');
+        const url = `/api/client/quotations${qs ? `?${qs}` : ''}`;
         const res = await fetch(url, { cache: 'no-store' });
 
         if (!res.ok) {
