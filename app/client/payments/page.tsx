@@ -76,7 +76,7 @@ function PaymentsContent() {
                 {summary?.alreadyPaidFormatted || '₹3,21,119'}
               </div>
               <div className="text-[11px] text-emerald-700/80 font-medium mt-1">
-                ✓ 60% cumulative cleared across milestones
+                ✓ {Math.round(((summary?.alreadyPaid || 0) / (summary?.totalQuotationValue || 1)) * 100)}% cumulative cleared across milestones
               </div>
             </div>
 

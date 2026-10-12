@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       clientUser?.clientId ||
       lead?.customerId ||
       lead?.customer_id ||
-      (lead?.leadId || lead?.lead_identifier ? `BLR-${String(lead.leadId || lead.lead_identifier).replace(/\D/g, '')}` : (isVarnika ? 'BLR-A1691' : 'BLR-A0462'));
+      (lead?.leadIdentifier ? `BLR-${lead.leadIdentifier}` : lead?.leadId ? (String(lead.leadId).startsWith('BLR-') ? lead.leadId : `BLR-${lead.leadId}`) : (isVarnika ? 'BLR-A1691' : 'BLR-QK-KJT5T5P7EF'));
 
     const propertyTitle = clientUser
       ? `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`
