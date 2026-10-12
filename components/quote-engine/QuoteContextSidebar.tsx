@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Customer, Project, Room } from '@/lib/types/quote.types';
 
 interface QuoteContextSidebarProps {
@@ -49,6 +49,49 @@ export default function QuoteContextSidebar({
 }: QuoteContextSidebarProps) {
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
+  const [showClientResults, setShowClientResults] = useState(false);
+  const clientSearchRef = useRef<HTMLDivElement>(null);
+
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) || null;
+
+  const matchingClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return customers.slice(0, 40);
+    return customers.filter((c) => {
+      const email = 'email' in c ? String((c as Customer & { email?: string }).email || '') : '';
+      return c.name.toLowerCase().includes(q) || email.toLowerCase().includes(q);
+    });
+  }, [customers, clientQuery]);
+
+  const customerProjects = useMemo(() => {
+    if (selectedCustomerId == null) return [];
+    return projects.filter((p) => p.customerId === selectedCustomerId || p.id === selectedCustomerId);
+  }, [projects, selectedCustomerId]);
+
+  useEffect(() => {
+    if (!selectedCustomer) return;
+    if (!showClientResults) setClientQuery(selectedCustomer.name);
+  }, [selectedCustomer, showClientResults]);
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!clientSearchRef.current?.contains(event.target as Node)) {
+        setShowClientResults(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  const runClientSearch = () => {
+    setShowClientResults(true);
+    if (matchingClients.length === 1) {
+      onSelectCustomer(matchingClients[0].id);
+      setClientQuery(matchingClients[0].name);
+      setShowClientResults(false);
+    }
+  };
 
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,30 +111,69 @@ export default function QuoteContextSidebar({
             CUSTOMER CONTEXT
           </h3>
 
-          {/* Customer Dropdown */}
-          <div className="mb-4">
+          {/* Customer search */}
+          <div className="mb-4" ref={clientSearchRef}>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
               CUSTOMER
             </label>
-            <div className="relative">
-              <select
-                value={selectedCustomerId ?? ''}
-                onChange={(e) => onSelectCustomer(Number(e.target.value))}
-                className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-md py-2 px-3 appearance-none focus:outline-none focus:ring-1 focus:ring-black cursor-pointer shadow-xs"
-              >
-                {customers.length === 0 ? (
-                  <option value="">No customers available</option>
-                ) : (
-                  customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={clientQuery}
+                  onChange={(e) => {
+                    setClientQuery(e.target.value);
+                    setShowClientResults(true);
+                  }}
+                  onFocus={() => setShowClientResults(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      runClientSearch();
+                    }
+                    if (e.key === 'Escape') setShowClientResults(false);
+                  }}
+                  placeholder="Search client name"
+                  className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-md py-2 px-3 pr-2 focus:outline-none focus:ring-1 focus:ring-black shadow-xs"
+                />
+                {showClientResults && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                    {matchingClients.length === 0 ? (
+                      <p className="px-3 py-2 text-[11px] text-gray-400">No clients match that name.</p>
+                    ) : (
+                      matchingClients.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectCustomer(c.id);
+                            setClientQuery(c.name);
+                            setShowClientResults(false);
+                          }}
+                          className={`block w-full truncate px-3 py-2 text-left text-xs ${
+                            c.id === selectedCustomerId
+                              ? 'bg-gray-100 font-bold text-gray-900'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
               </div>
+              <button
+                type="button"
+                onClick={runClientSearch}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-gray-200 bg-white text-gray-500 shadow-xs hover:border-black hover:text-black"
+                title="Search client"
+                aria-label="Search client"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -104,17 +186,19 @@ export default function QuoteContextSidebar({
               <select
                 value={selectedProjectId ?? ''}
                 onChange={(e) => onSelectProject(Number(e.target.value))}
-                disabled={isLoadingProjects}
+                disabled={isLoadingProjects || !selectedCustomerId}
                 className={`w-full text-xs font-semibold bg-white border border-gray-200 rounded-md py-2 px-3 appearance-none focus:outline-none focus:ring-1 focus:ring-black cursor-pointer shadow-xs ${
                   isLoadingProjects ? 'text-gray-400' : 'text-gray-800'
                 }`}
               >
                 {isLoadingProjects ? (
                   <option value="">Loading projects...</option>
-                ) : projects.length === 0 ? (
-                  <option value="">No projects available</option>
+                ) : !selectedCustomerId ? (
+                  <option value="">Select a client first</option>
+                ) : customerProjects.length === 0 ? (
+                  <option value="">No project for this client</option>
                 ) : (
-                  projects.map((p) => (
+                  customerProjects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.projectName}
                     </option>

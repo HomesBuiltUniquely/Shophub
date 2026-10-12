@@ -1,4 +1,6 @@
 export const SESSION_COOKIE = 'shophub_session';
+export const CRM_TOKEN_COOKIE = 'shophub_crm_token';
+export const DESIGN_TOKEN_COOKIE = 'shophub_design_token';
 
 export type PortalRole = 'admin' | 'enterprise' | 'client' | 'crm' | 'designer';
 
@@ -8,8 +10,7 @@ export type SessionUser = {
   name: string;
   role: PortalRole;
   brand?: string;
-  crmToken?: string;
-  designToken?: string;
+  loginSource?: 'catalog' | 'internal';
 };
 
 export function encodeSession(user: SessionUser): string {
@@ -51,7 +52,9 @@ export function sessionCookieOptions() {
 }
 
 export function redirectForRole(role: PortalRole) {
-  return role === 'client' ? '/client' : '/offerings';
+  if (role === 'client') return '/client';
+  if (role === 'crm' || role === 'designer') return '/quote-engine';
+  return '/offerings';
 }
 
 export function canManageCatalog(role?: PortalRole | null) {

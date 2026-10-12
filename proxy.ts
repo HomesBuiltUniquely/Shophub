@@ -6,19 +6,12 @@ import {
   SESSION_COOKIE,
 } from '@/lib/auth/session';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
+const PUBLIC_PATHS = ['/', '/login', '/api/auth/login', '/api/auth/logout'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const session = decodeSession(request.cookies.get(SESSION_COOKIE)?.value);
   const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-
-  if (pathname === '/') {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-    return NextResponse.redirect(new URL(redirectForRole(session.role), request.url));
-  }
 
   if (!session && !isPublic) {
     if (pathname.startsWith('/api/')) {
@@ -30,16 +23,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (session && pathname === '/login') {
-    return NextResponse.redirect(new URL(redirectForRole(session.role), request.url));
-  }
-
   if (session?.role === 'client' && isEnterprisePath(pathname)) {
     return NextResponse.redirect(new URL('/client', request.url));
   }
 
   if ((session?.role === 'enterprise' || session?.role === 'admin') && pathname.startsWith('/client')) {
-    return NextResponse.redirect(new URL('/offerings', request.url));
+    return NextResponse.redirect(new URL(redirectForRole(session.role), request.url));
   }
 
   return NextResponse.next();

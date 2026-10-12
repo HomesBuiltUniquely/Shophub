@@ -70,6 +70,7 @@ export async function authenticateUser(email: string, password: string) {
     name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'User',
     role: mapped,
     brand: row.brand_name || undefined,
+    loginSource: 'catalog',
   };
 
   return { session, token: encodeSession(session) };

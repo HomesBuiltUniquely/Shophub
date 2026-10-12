@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import type { SessionUser } from './session';
 
 export function useCurrentUser() {
+  const { user } = useAuthSession();
+  return user;
+}
+
+export function useAuthSession() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,13 +21,16 @@ export function useCurrentUser() {
       })
       .catch(() => {
         if (!cancelled) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return user;
+  return { user, loading };
 }
 
 export function firstNameFrom(user?: SessionUser | null) {
@@ -33,7 +42,7 @@ export function roleLabel(user?: SessionUser | null) {
   if (!user?.role) return '';
   if (user.role === 'admin') return 'Admin';
   if (user.role === 'enterprise') return 'Enterprise';
-  if (user.role === 'crm') return 'CRM Specialist';
-  if (user.role === 'designer') return 'Designer';
+  if (user.role === 'crm') return user.loginSource === 'internal' ? 'Sales' : 'CRM Specialist';
+  if (user.role === 'designer') return user.loginSource === 'internal' ? 'Design' : 'Designer';
   return 'Client';
 }
