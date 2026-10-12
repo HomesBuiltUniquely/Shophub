@@ -129,14 +129,25 @@ export async function fetchSpringProducts(options?: {
   return trySpringGet(`/products/getAllProducts?${params.toString()}`);
 }
 
-export async function fetchAllSpringProducts() {
+export async function fetchAllSpringProducts(options?: {
+  isPublished?: boolean | null;
+  size?: number;
+  sort?: string;
+}) {
   const collected: any[] = [];
   let totalElements = 0;
-  for (const published of [true, false] as const) {
+  const publishedValues =
+    options?.isPublished == null ? ([true, false] as const) : ([options.isPublished] as const);
+  for (const published of publishedValues) {
     let page = 0;
     let totalPages = 1;
     do {
-      const spring = await fetchSpringProducts({ isPublished: published, page, size: 100, sort: 'prodId,asc' });
+      const spring = await fetchSpringProducts({
+        isPublished: published,
+        page,
+        size: options?.size ?? 100,
+        sort: options?.sort ?? 'prodId,asc',
+      });
       if (!spring.ok) break;
       const parsed = springProductPage(spring.data);
       collected.push(...parsed.content);

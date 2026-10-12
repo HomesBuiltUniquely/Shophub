@@ -1,5 +1,6 @@
 import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 import { hashPassword } from './password';
+import type { RowDataPacket } from 'mysql2';
 
 let ensured = false;
 
@@ -37,8 +38,8 @@ export async function ensureAuthSchema() {
   if (ensured) return;
   const pool = getHomesMerryDbPool();
 
-  const [cols]: any = await pool.query(`SHOW COLUMNS FROM product LIKE 'created_by'`);
-  if (!Array.isArray(cols) || cols.length === 0) {
+  const [cols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM product LIKE 'created_by'`);
+  if (cols.length === 0) {
     await pool.query(`ALTER TABLE product ADD COLUMN created_by BIGINT NULL`);
   }
 
@@ -58,10 +59,6 @@ export async function ensureAuthSchema() {
       [demo.email, hash, demo.role, demo.email]
     );
   }
-
-  await pool.query(
-    `UPDATE product SET created_by = 101 WHERE created_by IS NULL`
-  );
 
   ensured = true;
 }

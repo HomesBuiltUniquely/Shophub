@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 import { getSessionFromRequest } from '@/lib/auth/account';
 import { ensureAuthSchema } from '@/lib/auth/ensure';
-import { fetchSpringProducts, springProductPage } from '@/lib/api/spring';
+import { fetchAllSpringProducts } from '@/lib/api/spring';
+import {
+  deduplicateProducts,
+  filterEnterpriseProducts,
+} from '@/lib/auth/product-visibility';
 
 function isPublishedRow(row: any): boolean {
   const value = row?.is_published;
@@ -143,22 +147,19 @@ export async function GET(request: NextRequest) {
     const publishedParam = searchParams.get('is_published');
     const isPublished =
       publishedParam == null ? true : publishedParam === 'true' || publishedParam === '1';
-    const spring = await fetchSpringProducts({
-      isPublished,
-      page,
-      size,
-      sort: searchParams.get('sort') || 'prodId,asc',
-    });
-    if (spring.ok) {
-      const parsed = springProductPage(spring.data);
-      let content = parsed.content;
-      if (session.role === 'enterprise') {
-        content = content.filter((item: any) => Number(item.created_by) === session.id || item.created_by == null);
-      }
-      const totalPages = Math.max(1, parsed.totalPages || Math.ceil((parsed.totalElements || content.length) / size));
+    const sort = searchParams.get('sort') || 'prodId,asc';
+    const springProducts = await fetchAllSpringProducts({ isPublished, sort });
+    const catalogProducts =
+      session.role === 'enterprise'
+        ? await filterEnterpriseProducts(springProducts, session.id)
+        : deduplicateProducts(springProducts);
+    if (catalogProducts.length > 0) {
+      const totalElements = catalogProducts.length;
+      const totalPages = Math.max(1, Math.ceil(totalElements / size));
+      const content = catalogProducts.slice(page * size, (page + 1) * size);
       return NextResponse.json({
         content,
-        totalElements: parsed.totalElements || content.length,
+        totalElements,
         totalPages,
         size,
         number: page,
@@ -171,19 +172,32 @@ export async function GET(request: NextRequest) {
     }
 
     const offset = page * size;
+    const uniqueProductIdsSql = `
+      SELECT MAX(prod_id) AS prod_id
+      FROM product
+      WHERE ${ownerWhere}
+      GROUP BY COALESCE(NULLIF(UPPER(TRIM(sku_id)), ''), CONCAT('ID:', prod_id))
+    `;
 
     const [countRows]: any = await pool.query(
-      `SELECT COUNT(*) AS total FROM product WHERE ${ownerWhere}`,
+      `SELECT COUNT(*) AS total FROM (${uniqueProductIdsSql}) AS unique_products`,
       ownerParams
     );
     const totalElements = Number(countRows?.[0]?.total ?? 0);
 
     const [rows]: any = await pool.query(
-      `SELECT * FROM product WHERE ${ownerWhere} ORDER BY prod_id DESC LIMIT ? OFFSET ?`,
-      [...ownerParams, size, offset]
+      `SELECT product.*
+       FROM product
+       INNER JOIN (${uniqueProductIdsSql}) AS unique_products
+         ON unique_products.prod_id = product.prod_id
+       ORDER BY product.prod_id DESC
+       LIMIT ? OFFSET ?`,
+      [...ownerParams, ...ownerParams, size, offset]
     );
 
-    const content = (Array.isArray(rows) ? rows : []).map(mapProductRow);
+    const content = deduplicateProducts(
+      (Array.isArray(rows) ? rows : []).map(mapProductRow)
+    );
     const totalPages = Math.max(1, Math.ceil(totalElements / size));
 
     return NextResponse.json({

@@ -16,7 +16,7 @@
  * ==============================================================================
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { BrandEntity } from '@/lib/db/homesmerry';
 
 interface CreateOfferingModalProps {
@@ -46,6 +46,7 @@ export default function CreateOfferingModal({
   const [shortDesc, setShortDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitInProgress = useRef(false);
 
   // Fetch full active brands dropdown directly from Spring Boot backend
   React.useEffect(() => {
@@ -85,11 +86,13 @@ export default function CreateOfferingModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitInProgress.current) return;
     if (!offeringName || !skuId || !selectedBrand) {
       setError('Offering Name, SKU ID, and Brand are required.');
       return;
     }
 
+    submitInProgress.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -121,6 +124,7 @@ export default function CreateOfferingModal({
     } catch (err: any) {
       setError(err.message || 'Error creating offering');
     } finally {
+      submitInProgress.current = false;
       setIsSubmitting(false);
     }
   };

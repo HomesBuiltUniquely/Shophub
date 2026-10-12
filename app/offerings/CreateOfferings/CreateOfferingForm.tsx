@@ -97,6 +97,7 @@ export default function CreateOfferingForm() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [prodId, setProdId] = useState<number | null>(null);
   const [isPublished, setIsPublished] = useState(false);
+  const submitInProgress = useRef(false);
   const primaryImageRef = useRef<HTMLInputElement>(null);
   const tabIndex = TABS.indexOf(tab);
 
@@ -408,11 +409,13 @@ export default function CreateOfferingForm() {
   };
 
   const submit = async (publish: boolean) => {
+    if (submitInProgress.current) return;
     if (!form.offering_name.trim() || !form.sku_id.trim()) {
       setError('Offering name and SKU are required before you can save.');
       setTab('GENERAL');
       return;
     }
+    submitInProgress.current = true;
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -455,6 +458,7 @@ export default function CreateOfferingForm() {
     } catch (err: any) {
       setError(err.message || 'Failed to save offering');
     } finally {
+      submitInProgress.current = false;
       setIsSubmitting(false);
     }
   };

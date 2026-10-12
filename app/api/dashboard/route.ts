@@ -3,6 +3,10 @@ import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 import { getSessionFromRequest } from '@/lib/auth/account';
 import { ensureAuthSchema } from '@/lib/auth/ensure';
 import { fetchAllSpringProducts } from '@/lib/api/spring';
+import {
+  deduplicateProducts,
+  filterEnterpriseProducts,
+} from '@/lib/auth/product-visibility';
 
 function publishedExpr() {
   return `CAST(is_published AS UNSIGNED) = 1`;
@@ -19,8 +23,8 @@ export async function GET(request: NextRequest) {
     const springProducts = await fetchAllSpringProducts();
     const scopedSpring =
       session.role === 'enterprise'
-        ? springProducts.filter((item) => Number(item.created_by) === session.id || item.created_by == null)
-        : springProducts;
+        ? await filterEnterpriseProducts(springProducts, session.id)
+        : deduplicateProducts(springProducts);
     if (scopedSpring.length > 0) {
       const quoteStats = await loadQuoteStats(getHomesMerryDbPool());
       return NextResponse.json({ success: true, source: 'spring', ...buildStatsFromProducts(scopedSpring), quotes: quoteStats });

@@ -38,11 +38,17 @@ const createEmptyPageResponse = (page = 0, size = 10): PageResponse<ProdDataResD
  */
 async function getProductsFromLocalApi(
   page = 0,
-  size = 50
+  size = 50,
+  sort = 'prodId,asc'
 ): Promise<PageResponse<ProdDataResDTO> | null> {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const response = await fetch(`${origin}/api/products?page=${page}&size=${size}`, {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+      sort,
+    });
+    const response = await fetch(`${origin}/api/products?${params.toString()}`, {
       cache: 'no-store',
       credentials: 'include',
     });
@@ -62,22 +68,7 @@ export const getAllProducts = async (
   size = 50,
   sort = 'prodId,asc'
 ): Promise<PageResponse<ProdDataResDTO>> => {
-  try {
-    const response = await apiClient.get<any>('/products/getAllProducts', {
-      params: {
-        page,
-        size,
-        sort,
-      },
-    });
-    if (response.data && response.data.content) {
-      return response.data;
-    }
-  } catch (error: any) {
-    console.warn('[product.service] Live Spring Boot catalog offline, falling back to local MySQL API:', error.message);
-  }
-
-  const localPage = await getProductsFromLocalApi(page, size);
+  const localPage = await getProductsFromLocalApi(page, size, sort);
   if (localPage) {
     return localPage;
   }
