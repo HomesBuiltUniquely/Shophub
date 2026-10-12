@@ -29,7 +29,7 @@ const DEMO_USERS = [
     password: 'Client@123',
     first_name: 'Varnika',
     last_name: 'Sharma',
-    role: 'CLIENT',
+    role: 'INTERIOR_CLIENT',
     brand_name: '',
   },
 ];

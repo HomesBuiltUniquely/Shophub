@@ -7,7 +7,7 @@ import { ensureAuthSchema } from './ensure';
 
 function mapPortalRole(raw?: string | null): PortalRole | null {
   const role = String(raw || '').toUpperCase();
-  if (['CLIENT', 'CUSTOMER'].includes(role)) return 'client';
+  if (['RETAIL_CUSTOMER', 'INTERIOR_CLIENT'].includes(role)) return 'client';
   if (['ADMIN', 'SUPER_ADMIN'].includes(role)) return 'admin';
   if (['CRM', 'SALES', 'AGENT', 'EXECUTIVE', 'CRM_SPECIALIST'].includes(role)) return 'crm';
   if (['DESIGN', 'DESIGNER', 'INTERIOR_DESIGNER'].includes(role)) return 'designer';
