@@ -73,6 +73,7 @@ export interface QuoteModel {
   subtotal: number;
   discountPercentage?: number;
   totalDiscount?: number;
+  freightPercentage?: number;
   estimatedFreight?: number;
   grandTotal: number;
   designerMarginPercentage?: number;
@@ -115,11 +116,13 @@ interface RawCategoryData {
 // ============================================================================
 // Helper to compute quote metrics
 // ============================================================================
-const computeTotals = (items: QuoteItemModel[], discountPct = 5) => {
+const computeTotals = (items: QuoteItemModel[], discountPct = 5, freightPct = 2.5) => {
   const subtotal = items.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0);
   const totalCost = items.reduce((sum, item) => sum + ((item.costPrice || 0) * item.quantity), 0);
   const totalDiscount = Math.round(subtotal * (discountPct / 100));
-  const estimatedFreight = items.length > 0 ? 1500 : 0;
+  const netSubtotal = Math.max(0, subtotal - totalDiscount);
+  // Dynamic estimated freight calculated based on subtotal and discount (net subtotal)
+  const estimatedFreight = items.length > 0 && netSubtotal > 0 ? Math.round(netSubtotal * (freightPct / 100)) : 0;
   const grandTotal = Math.max(0, subtotal - totalDiscount + estimatedFreight);
   const projectedProfit = Math.max(0, (subtotal - totalDiscount) - totalCost);
   const designerMarginPercentage = subtotal > 0 ? Number(((projectedProfit / subtotal) * 100).toFixed(1)) : 24.5;
@@ -129,6 +132,7 @@ const computeTotals = (items: QuoteItemModel[], discountPct = 5) => {
     subtotal,
     discountPercentage: discountPct,
     totalDiscount,
+    freightPercentage: freightPct,
     estimatedFreight,
     grandTotal,
     projectedProfit,
@@ -158,6 +162,7 @@ function QuoteEngineContent() {
   const isEnterprise = effectiveRole === 'enterprise';
   const isCrm = effectiveRole === 'crm';
   const isDesigner = effectiveRole === 'designer';
+  const canEditDiscount = isAdmin || isCrm || isDesigner;
 
 
   // Navigation & Filter State
@@ -181,8 +186,8 @@ function QuoteEngineContent() {
     'Client requested brushed brass finish for all hardware and fittings.'
   );
 
-  // Quote State - Admin defaults to 5%, others default to 0% unless authorized
-  const initialTotals = computeTotals([], isAdmin ? 5 : 0);
+  // Quote State - Admin, CRM, and Designer default to 5% discount and 2.5% dynamic freight
+  const initialTotals = computeTotals([], canEditDiscount ? 5 : 0, 2.5);
   const [quote, setQuote] = useState<QuoteModel>({
     id: 1,
     quoteNumber: 'QTE-2026-1001',
@@ -252,7 +257,7 @@ function QuoteEngineContent() {
               };
 
               const updatedItems = [...prev.items, newItem];
-              const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5);
+              const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5, prev.freightPercentage ?? 2.5);
 
               return {
                 ...prev,
@@ -571,20 +576,40 @@ function QuoteEngineContent() {
   };
 
   const handleUpdateDiscount = (newPct: number) => {
-    if (!isAdmin) {
-      setToastMessage('Only administrators are authorized to modify discounts.');
+    if (!canEditDiscount) {
+      setToastMessage('Only CRM, Design team, and Administrators are authorized to modify discounts.');
       setTimeout(() => setToastMessage(null), 3000);
       return;
     }
 
     setQuote((prev) => {
-      const totals = computeTotals(prev.items, newPct);
+      const freightPct = prev.freightPercentage ?? 2.5;
+      const totals = computeTotals(prev.items, newPct, freightPct);
       return {
         ...prev,
         ...totals,
       };
     });
-    setToastMessage(`Discount updated to ${newPct}% by Admin.`);
+    setToastMessage(`Discount updated to ${newPct}%.`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleUpdateFreight = (newFreightPct: number) => {
+    if (!canEditDiscount) {
+      setToastMessage('Only CRM, Design team, and Administrators are authorized to modify freight.');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    setQuote((prev) => {
+      const discountPct = prev.discountPercentage ?? 5;
+      const totals = computeTotals(prev.items, discountPct, newFreightPct);
+      return {
+        ...prev,
+        ...totals,
+      };
+    });
+    setToastMessage(`Estimated freight updated to ${newFreightPct}%.`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -672,7 +697,7 @@ function QuoteEngineContent() {
         updatedItems = [...prev.items, newItem];
       }
 
-      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5);
+      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5, prev.freightPercentage ?? 2.5);
       return {
         ...prev,
         items: updatedItems,
@@ -703,7 +728,7 @@ function QuoteEngineContent() {
         return item;
       });
 
-      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5);
+      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5, prev.freightPercentage ?? 2.5);
       return {
         ...prev,
         items: updatedItems,
@@ -715,7 +740,7 @@ function QuoteEngineContent() {
   const handleRemoveItem = (itemId: number) => {
     setQuote((prev) => {
       const updatedItems = prev.items.filter((item) => item.id !== itemId);
-      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5);
+      const totals = computeTotals(updatedItems, prev.discountPercentage ?? 5, prev.freightPercentage ?? 2.5);
       return {
         ...prev,
         items: updatedItems,
@@ -728,7 +753,7 @@ function QuoteEngineContent() {
   const handleClearQuote = () => {
     if (confirm('Are you sure you want to clear all items in this quote?')) {
       setQuote((prev) => {
-        const totals = computeTotals([], prev.discountPercentage ?? 5);
+        const totals = computeTotals([], prev.discountPercentage ?? 5, prev.freightPercentage ?? 2.5);
         return {
           ...prev,
           items: [],
@@ -875,7 +900,9 @@ function QuoteEngineContent() {
               setIsQuoteSidebarOpen(false);
             }}
             isAdmin={isAdmin}
+            canEditDiscount={canEditDiscount}
             onUpdateDiscount={handleUpdateDiscount}
+            onUpdateFreight={handleUpdateFreight}
           />
         )}
       </div>
