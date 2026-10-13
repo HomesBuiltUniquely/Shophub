@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const effectiveLeadId =
       paramLeadId ||
       clientUser?.leadId ||
-      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691' : null);
+      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
     if (!effectiveLeadId) {
       return NextResponse.json({
@@ -211,8 +211,8 @@ export async function GET(request: NextRequest) {
         status = isLeadApproved ? 'Approved' : 'Pending Approval';
       }
 
-      const rowQuoteId = data.quoteID || row.quote_id || row.id || '70877';
-      const itemQuoteUrl = data.quoteLink || data.quoteUrl || `https://design.hubinterior.com/quote/${rowQuoteId}`;
+      const rowQuoteId = data.quoteID || row.quote_id || row.id || '';
+      const itemQuoteUrl = data.quoteLink || data.quoteUrl || (rowQuoteId ? `https://design.hubinterior.com/quote/${rowQuoteId}` : '');
       const itemPdfUrl = data.pdfUrl || leadQuoteLink || itemQuoteUrl;
 
       const summaryItem: QuotationSummaryItem = {
@@ -388,8 +388,8 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const quoteId = activeData.quoteID || activeRow.quote_id || '70877';
-    const quoteUrl = `https://design.hubinterior.com/quote/${quoteId}`;
+    const quoteId = activeData.quoteID || activeRow.quote_id || '';
+    const quoteUrl = quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : '';
     const pdfUrl = leadQuoteLink || quoteUrl;
 
     const activeQuote: ActiveQuoteDetail = {

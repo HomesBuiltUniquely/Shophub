@@ -11,7 +11,7 @@ import ClientHeader from '@/components/client/layout/ClientHeader';
 import ClientFooter from '@/components/client/layout/ClientFooter';
 import ContactRmModal from '@/components/client/dashboard/ContactRmModal';
 import FloatingSupportChat from '@/components/client/dashboard/FloatingSupportChat';
-import { DownloadIcon, StepShieldIcon } from '../icons/ClientIcons';
+import { DownloadIcon, StepShieldIcon } from '@/components/client/icons/ClientIcons';
 
 function WarrantyContent() {
   const { data, isLoading, openContactModal } = useClientDashboard();

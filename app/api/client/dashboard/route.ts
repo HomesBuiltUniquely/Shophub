@@ -25,14 +25,13 @@ export async function GET(request: NextRequest) {
     let effectiveLeadId =
       paramLeadId ||
       clientUser?.leadId ||
-      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691' : null);
+      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
     if (
       effectiveLeadId === '99903' ||
       effectiveLeadId?.includes('99903') ||
       effectiveLeadId?.includes('KJT5T5P7EF') ||
-      clientUser?.email?.toLowerCase() === 'go@hubinterior.com' ||
-      clientUser?.fullName?.toLowerCase().includes('client')
+      clientUser?.email?.toLowerCase() === 'go@hubinterior.com'
     ) {
       effectiveLeadId = '99903';
     }
@@ -47,7 +46,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const leadId = effectiveLeadId || '1691';
+    if (!effectiveLeadId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No client session or lead ID found.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const leadId = effectiveLeadId;
 
     // Parallel fetch from project-erp and DesignModule with graceful settled error handling
     const [leadRes, pipelineRes, quoteRes, paymentRes, appointmentsRes, designPaymentRes] =
@@ -87,7 +96,7 @@ export async function GET(request: NextRequest) {
       dashboardData.profile.clientId = clientUser.clientId;
       dashboardData.profile.propertyDetails = clientUser.propertyDetails;
       dashboardData.profile.propertyType = clientUser.propertyType;
-      dashboardData.profile.leadId = clientUser.leadId || leadId || '99903';
+      dashboardData.profile.leadId = clientUser.leadId || leadId || '';
     }
 
     return NextResponse.json({
@@ -99,7 +108,7 @@ export async function GET(request: NextRequest) {
     console.error('[Client Dashboard API] Error:', error);
 
     // Always return valid fallback response so client UI never breaks
-    const fallbackData = mapErpToDashboard({}, 'AL-1002');
+    const fallbackData = mapErpToDashboard({}, '');
     return NextResponse.json({
       success: true,
       data: fallbackData,

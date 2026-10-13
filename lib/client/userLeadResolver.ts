@@ -43,28 +43,28 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
     const fullName = [firstName, lastName].filter(Boolean).join(' ') || session.name || 'Client';
 
     const email = userRow?.email || session.email;
-    const phone = userRow?.phone_number ? String(userRow.phone_number) : '9876523951';
+    const phone = userRow?.phone_number ? String(userRow.phone_number) : '';
     const city = userRow?.city || 'Bengaluru';
     const pincode = userRow?.pincode ? String(userRow.pincode) : '560001';
-    const address = userRow?.description || '123 MG Road';
+    const address = userRow?.description || '';
 
-    // Lead ID priority: userRow.lead_id -> auto-match in DesignMod leads -> demo mapping -> session.leadId -> null
+    // Lead ID priority: userRow.lead_id -> auto-match in DesignMod leads -> session.leadId -> null
     let leadId =
       userRow?.lead_id
         ? String(userRow.lead_id)
-        : email.toLowerCase() === 'client@hubinterior.com'
-        ? '1691'
         : session.leadId || null;
 
     let dmLead: any = null;
-    if (!leadId || leadId === '99903') {
+    if (!leadId) {
       try {
         const { getDesignModLead } = await import('@/lib/db/designmod');
-        dmLead = await getDesignModLead(leadId || email);
+        if (email) {
+          dmLead = await getDesignModLead(email);
+        }
         if (!dmLead && phone) {
           dmLead = await getDesignModLead(phone);
         }
-        if (dmLead && !leadId) {
+        if (dmLead) {
           leadId = String(dmLead.id);
           if (userRow?.uuid) {
             await pool.query('UPDATE user SET lead_id = ? WHERE uuid = ?', [leadId, userRow.uuid]);
@@ -72,6 +72,13 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
         }
       } catch (err) {
         console.warn('[userLeadResolver] Auto-link error:', err);
+      }
+    } else {
+      try {
+        const { getDesignModLead } = await import('@/lib/db/designmod');
+        dmLead = await getDesignModLead(leadId);
+      } catch (err) {
+        console.warn('[userLeadResolver] Fetch lead error:', err);
       }
     }
 
@@ -89,12 +96,7 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
       ? address
       : '3 BHK Apartment';
 
-    const locationName = dmLead?.propertyLocation
-      ? dmLead.propertyLocation.toLowerCase().includes('purva')
-        ? 'Purva Palm Beach, Bangalore'
-        : dmLead.propertyLocation
-      : city;
-
+    const locationName = dmLead?.propertyLocation || city;
     const propertyDetails = `${locationName} • ${pincode}`;
 
     return {
@@ -119,7 +121,7 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
       fullName: session.name || 'Client',
       firstName,
       email: session.email,
-      phone: '9876523951',
+      phone: '',
       city: 'Bengaluru',
       pincode: '560001',
       address: '',
@@ -232,7 +234,7 @@ export function buildClientInitialDashboard(client: ResolvedClientInfo): ClientD
         icon: 'referral',
       },
     ],
-    assignedTeam: {
+    team: {
       relationshipManager: {
         role: 'Relationship Manager',
         name: 'Sharanya',
@@ -265,6 +267,7 @@ export function buildClientInitialDashboard(client: ResolvedClientInfo): ClientD
       remainingBalanceFormatted: '₹0',
       stageNote: 'Initial booking token confirmed. Design consultation and site measurement in progress.',
     },
+    leadId: client.leadId || String(client.id),
     isLiveBackend: true,
     lastUpdated: new Date().toISOString(),
   };

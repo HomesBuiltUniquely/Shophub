@@ -15,12 +15,109 @@ export async function GET(request: NextRequest) {
     // Resolve authenticated client
     const clientUser = await resolveClientUser(request);
 
-    const effectiveLeadId =
+    let effectiveLeadId =
       paramLeadId ||
       clientUser?.leadId ||
-      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '1691' : null);
+      (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
-    const leadId = effectiveLeadId || '1691';
+    if (
+      effectiveLeadId === '99903' ||
+      effectiveLeadId?.includes('99903') ||
+      effectiveLeadId?.includes('KJT5T5P7EF') ||
+      clientUser?.email?.toLowerCase() === 'go@hubinterior.com'
+    ) {
+      effectiveLeadId = '99903';
+    }
+
+    if (!effectiveLeadId && clientUser) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          projectId: clientUser.clientId,
+          clientName: clientUser.fullName,
+          propertyTitle: `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`,
+          currentPhaseTitle: 'Initial Consultation & Site Measurement',
+          overallProgressPercentage: 12,
+          sitePhotos: [],
+          readinessItems: [
+            {
+              name: 'Design Consultation',
+              percentage: 100,
+              subtext: 'Initial consultation booked with Interior Designer.',
+              isComplete: true,
+            },
+            {
+              name: 'Site Measurement Prep',
+              percentage: 0,
+              subtext: 'Laser measurement scheduled for site dimensions.',
+              isComplete: false,
+            },
+          ],
+          nextBigStep: {
+            title: 'Initial Design Consultation & Site Measurement',
+            startDate: 'Ongoing',
+          },
+          timelineMilestones: [
+            {
+              id: 'step-1',
+              title: 'Booking Closure',
+              date: 'Completed',
+              description: 'Initial booking token confirmed.',
+              status: 'completed' as const,
+            },
+            {
+              id: 'step-2',
+              title: 'D1 Site Measurement',
+              date: 'Next',
+              description: 'Site architectural measurements and laser scan.',
+              status: 'active' as const,
+              estCompletion: 'Upcoming',
+            },
+            {
+              id: 'step-3',
+              title: 'DQC1 Drawing & 10% Payment',
+              date: 'Pending',
+              description: 'Detailed drawings and 10% milestone payment.',
+              status: 'upcoming' as const,
+            },
+          ],
+          teamContacts: [
+            {
+              id: 'team-1',
+              name: 'Design Team',
+              role: 'LEAD DESIGNER',
+              phone: '+91 97405 44327',
+              email: 'design@hubinterior.com',
+              avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+              actionType: 'call' as const,
+            },
+            {
+              id: 'team-2',
+              name: 'Relationship Manager',
+              role: 'RELATIONSHIP MANAGER',
+              phone: '+91 87550 09932',
+              email: 'support@hubinterior.com',
+              avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+              actionType: 'call' as const,
+            },
+          ],
+          latestRevision: {
+            fileName: 'Project_Onboarding.pdf',
+            fileSize: '1.2 MB',
+            updatedText: 'Booking Token Confirmed',
+            downloadUrl: undefined,
+          },
+          isLiveBackend: true,
+          lastUpdated: new Date().toISOString(),
+        },
+      });
+    }
+
+    if (!effectiveLeadId) {
+      return NextResponse.json({ success: false, error: 'No active project found' }, { status: 404 });
+    }
+
+    const leadId = effectiveLeadId;
 
     let lead: any = null;
     if (effectiveLeadId) {
@@ -34,7 +131,7 @@ export async function GET(request: NextRequest) {
     const isLive = Boolean(lead && lead.id);
 
     // Format customer name & ID
-    const rawName = clientUser ? clientUser.fullName : (lead?.name || 'Varnika');
+    const rawName = clientUser ? clientUser.fullName : (lead?.name || 'Client');
     const cleanName =
       rawName === rawName.toUpperCase()
         ? rawName
@@ -43,42 +140,29 @@ export async function GET(request: NextRequest) {
             .join(' ')
         : rawName;
 
-    const isVarnika =
-      cleanName.toLowerCase().includes('varnika') ||
-      String(leadId).includes('1691') ||
-      String(leadId).includes('3F565') ||
-      String(leadId).includes('2341');
-
     const projectId =
       clientUser?.clientId ||
       lead?.customerId ||
       lead?.customer_id ||
-      (lead?.leadIdentifier ? `BLR-${lead.leadIdentifier}` : lead?.leadId ? (String(lead.leadId).startsWith('BLR-') ? lead.leadId : `BLR-${lead.leadId}`) : (isVarnika ? 'BLR-A1691' : 'BLR-QK-KJT5T5P7EF'));
+      (lead?.leadIdentifier ? `BLR-${lead.leadIdentifier}` : lead?.leadId ? (String(lead.leadId).startsWith('BLR-') ? lead.leadId : `BLR-${lead.leadId}`) : `BLR-A${String(leadId).replace(/\D/g, '')}`);
 
     const propertyTitle = clientUser
       ? `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`
-      : (isVarnika
-          ? '2 BHK Apartment • Bangalore 560076 (Renovation)'
-          : '4 BHK Apartment • Bangalore 560043');
+      : `${lead?.propertyType || '3 BHK Apartment'} • ${lead?.propertyLocation || 'Bangalore'}`;
 
     // Lead Designer from CRM or fallback
-    const designerName = lead?.designerName || lead?.designer_name || (isVarnika ? 'Seher' : 'Meghana');
-    const designerPhone = isVarnika ? '+91 97405 44327' : (lead?.assigneePhone || '+91 88614 64757');
-    const designerEmail = isVarnika ? 'seher@hubinterior.com' : 'meghana@hubinterior.com';
+    const designerName = lead?.designerName || lead?.designer_name || 'Design Team';
+    const designerPhone = lead?.designerPhone || lead?.assigneePhone || '+91 97405 44327';
+    const designerEmail = lead?.designerEmail || 'design@hubinterior.com';
 
     // Assigned Relationship Manager
-    const rmName = lead?.assignee || (isVarnika ? 'Sharanya' : 'Meghana');
-    const rmPhone = isVarnika ? '+91 87550 09932' : (lead?.assigneePhone || '+91 88614 64757');
-    const rmEmail = isVarnika ? 'chitarala@hubinterior.com' : 'meghana@hubinterior.com';
+    const rmName = lead?.assignee || 'Relationship Manager';
+    const rmPhone = lead?.assigneePhone || '+91 87550 09932';
+    const rmEmail = lead?.assigneeEmail || 'support@hubinterior.com';
 
     // Project drawings & quotation
-    const fileName = isVarnika
-      ? 'VARNIKA FINAL QUOTATION 10-09-2026.pdf'
-      : (lead?.floorPlanUrl?.includes('REV-A') ? 'Project_Final_REV-A.pdf' : 'Project_Final_V4.pdf');
-
-    const downloadUrl = isVarnika
-      ? 'https://designmod.s3.ap-south-2.amazonaws.com/lead-uploads/lead-2341-1789212222793-0-dqc2-quotation-VARNIKA_FINAL_QUOTATION_10-09-2026.__1_.pdf'
-      : `https://hows.hubinterior.com/v1/leads/website/${lead?.id || 462}/floor-plan?presign=false`;
+    const fileName = lead?.floorPlanUrl?.includes('REV-A') ? 'Project_Final_REV-A.pdf' : 'Project_Final.pdf';
+    const downloadUrl = lead?.floorPlanUrl || `https://hows.hubinterior.com/v1/leads/website/${lead?.id || leadId}/floor-plan?presign=false`;
 
     // Dynamic quotation room extraction for any client from Prolance / DesignModule snapshots
     let dynamicRooms = null;
@@ -93,7 +177,7 @@ export async function GET(request: NextRequest) {
         ? quoteIdMatch[1]
         : lead?.prolanceQuoteId ||
           lead?.prolance_quote_id ||
-          (isVarnika ? '70877' : String(leadId) === '462' || String(lead?.id) === '462' ? '73761' : undefined);
+          (String(leadId) === '462' || String(lead?.id) === '462' ? '73761' : undefined);
 
       const contactNo = lead?.phone || lead?.contactNo || lead?.contact_no;
       dynamicRooms = await getQuoteRoomsForLead(lead?.id || leadId, quoteId, contactNo);
@@ -152,11 +236,9 @@ export async function GET(request: NextRequest) {
 
     const currentPhaseTitle = isStage10Payment
       ? '10% Payment & Site Masking Prep'
-      : isVarnika
-      ? 'Modular Carpentry Installation'
       : 'Modular Carpentry Installation';
 
-    const overallProgressPercentage = isStage10Payment ? 24 : isVarnika ? 72 : 68;
+    const overallProgressPercentage = isStage10Payment ? 24 : 68;
 
     const readinessItems = isStage10Payment
       ? [
@@ -177,27 +259,6 @@ export async function GET(request: NextRequest) {
             percentage: 0,
             subtext: 'Site masking scheduled once 10% milestone is confirmed.',
             isComplete: false,
-          },
-        ]
-      : isVarnika
-      ? [
-          {
-            name: 'Material Sourcing',
-            percentage: 100,
-            subtext: 'Ceramic loft, Toned Blue utility, and Veneer finishes approved.',
-            isComplete: true,
-          },
-          {
-            name: 'Factory Production',
-            percentage: 65,
-            subtext: 'Modular carcass & shutter fabrication in progress at factory.',
-            isComplete: false,
-          },
-          {
-            name: 'On-Site Masking & Prep',
-            percentage: 100,
-            subtext: 'Site masking verified; core cutting & electrical points marked.',
-            isComplete: true,
           },
         ]
       : [
@@ -226,14 +287,9 @@ export async function GET(request: NextRequest) {
           title: 'D2 Site Masking & Files Upload',
           startDate: 'Oct 12 - Oct 15',
         }
-      : isVarnika
-      ? {
-          title: 'Dispatch to Site for Installation',
-          startDate: 'Starting Sept 28, 2026',
-        }
       : {
-          title: 'Hardwood Flooring Polish',
-          startDate: 'Starting June 24, 2024',
+          title: 'Dispatch to Site for Installation',
+          startDate: 'Upcoming',
         };
 
     const timelineMilestones = isStage10Payment
@@ -282,79 +338,40 @@ export async function GET(request: NextRequest) {
             status: 'upcoming' as const,
           },
         ]
-      : isVarnika
-      ? [
-          {
-            id: 'step-1',
-            title: 'Booking & Design Kickoff',
-            date: 'July 15',
-            description: '10% booking token confirmed and virtual meeting with Designer Seher.',
-            status: 'completed' as const,
-          },
-          {
-            id: 'step-2',
-            title: 'D2 Site Masking & Checklist',
-            date: 'Aug 27',
-            description: 'Site masking drawings and civil dimensions checked on site.',
-            status: 'completed' as const,
-          },
-          {
-            id: 'step-3',
-            title: 'DQC2 Final Design Sign-off',
-            date: 'Sept 12',
-            description: 'Final quotation (Quote #70877) and production drawings approved by DQC.',
-            status: 'completed' as const,
-          },
-          {
-            id: 'step-4',
-            title: 'Factory Production & Assembly',
-            date: 'Sept 16',
-            description: '40% milestone cleared. Modular units in automated CNC cutting & edge banding.',
-            status: 'active' as const,
-            estCompletion: 'Est. Completion: Sept 28',
-          },
-          {
-            id: 'step-5',
-            title: 'Site Installation & Handover',
-            date: 'Oct 15',
-            description: 'Cabinetry fitting, countertop installation, final QC check, and handover.',
-            status: 'upcoming' as const,
-          },
-        ]
       : [
           {
             id: 'step-1',
             title: 'Civil & Electrical Modifications',
-            date: 'May 28',
+            date: 'Completed',
             description: 'Concealed wiring, lighting points, and partition walls finalized.',
             status: 'completed' as const,
           },
           {
             id: 'step-2',
             title: 'Flooring Installation',
-            date: 'June 05',
+            date: 'Completed',
             description: 'Italian marble laying and initial grinding in living areas.',
             status: 'completed' as const,
           },
           {
             id: 'step-3',
             title: 'Modular Carpentry Installation',
-            date: 'June 20',
+            date: 'In Progress',
             description: 'Kitchen cabinets and wardrobe frameworks are being fitted.',
             status: 'active' as const,
-            estCompletion: 'Est. Completion: June 20',
+            estCompletion: 'In Progress',
           },
           {
             id: 'step-4',
             title: 'False Ceiling & Painting',
-            date: 'June 25',
+            date: 'Upcoming',
             description: 'Installation of POP designs followed by base coat paint.',
             status: 'upcoming' as const,
           },
           {
             id: 'step-5',
             title: 'Project Handover',
-            date: 'July 15',
+            date: 'Upcoming',
             description: 'Deep cleaning, final snag check, and key handover ceremony.',
             status: 'upcoming' as const,
           },
@@ -381,10 +398,10 @@ export async function GET(request: NextRequest) {
       },
       {
         id: 'team-3',
-        name: isVarnika ? 'Sohan' : 'Vikram Mehta',
-        role: isVarnika ? 'PROJECT MANAGER' : 'SITE ENGINEER',
-        phone: isVarnika ? '+91 97411 67755' : '+91 97405 49568',
-        email: isVarnika ? 'sohan@hubinterior.com' : 'vikram@hubinterior.com',
+        name: 'Vikram Mehta',
+        role: 'SITE ENGINEER',
+        phone: '+91 97405 49568',
+        email: 'vikram@hubinterior.com',
         avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         actionType: 'chat' as const,
       },
@@ -403,12 +420,10 @@ export async function GET(request: NextRequest) {
       teamContacts,
       latestRevision: {
         fileName: isClient99903 ? 'CLIENT_QUOTATION_Q-53993-019.pdf' : fileName,
-        fileSize: isClient99903 ? '4.8 MB' : isVarnika ? '5.0 MB' : '12.4 MB',
+        fileSize: isClient99903 ? '4.8 MB' : '12.4 MB',
         updatedText: isClient99903
           ? 'Quote #75774 (Q-53993-019) • Approved'
-          : isVarnika
-          ? 'Quote #70877 Approved • 5.0 MB'
-          : 'Updated yesterday • 12.4 MB',
+          : 'Updated recently • 12.4 MB',
         downloadUrl: isClient99903 ? 'https://design.hubinterior.com/quote/75774' : downloadUrl,
       },
       isLiveBackend: isLive,

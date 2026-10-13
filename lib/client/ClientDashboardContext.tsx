@@ -18,7 +18,7 @@ interface ClientDashboardContextValue {
   closeContactModal: () => void;
 }
 
-const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '2399';
+const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '';
 const defaultInitialData: ClientDashboardData = mapErpToDashboard({}, defaultLeadId);
 
 const ClientDashboardContext = createContext<ClientDashboardContextValue | null>(null);
@@ -61,7 +61,7 @@ export function ClientDashboardProvider({ children }: { children: React.ReactNod
       console.warn('[ClientDashboardContext] Using local fallback:', (err as Error).message);
       setError((err as Error).message);
       // Fallback
-      setData(mapErpToDashboard({}, currentLeadId || '1691'));
+      setData(mapErpToDashboard({}, currentLeadId || ''));
     } finally {
       setIsLoading(false);
     }

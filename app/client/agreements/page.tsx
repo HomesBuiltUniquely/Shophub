@@ -11,10 +11,10 @@ import ClientHeader from '@/components/client/layout/ClientHeader';
 import ClientFooter from '@/components/client/layout/ClientFooter';
 import ContactRmModal from '@/components/client/dashboard/ContactRmModal';
 import FloatingSupportChat from '@/components/client/dashboard/FloatingSupportChat';
-import { DownloadIcon, CheckCircleIcon } from '../icons/ClientIcons';
+import { DownloadIcon, CheckCircleIcon } from '@/components/client/icons/ClientIcons';
 
 function AgreementsContent() {
-  const { data, isLoading } = useClientDashboard();
+  const { data, isLoading, openContactModal } = useClientDashboard();
   const profile = data.profile;
   const summary = data.paymentSummary;
 

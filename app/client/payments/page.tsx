@@ -61,10 +61,10 @@ function PaymentsContent() {
                 Total Quotation Value
               </div>
               <div className="text-2xl font-black text-gray-950 mt-2">
-                {summary?.totalQuotationValueFormatted || '₹5,35,199'}
+                {summary?.totalQuotationValueFormatted || '₹0'}
               </div>
               <div className="text-[11px] text-gray-500 mt-1">
-                Latest quote #{summary?.quoteId || '70877'}
+                {summary?.quoteId ? `Latest quote #${summary.quoteId}` : 'Awaiting Quotation'}
               </div>
             </div>
 
@@ -73,7 +73,7 @@ function PaymentsContent() {
                 Already Paid
               </div>
               <div className="text-2xl font-black text-emerald-600 mt-2">
-                {summary?.alreadyPaidFormatted || '₹3,21,119'}
+                {summary?.alreadyPaidFormatted || '₹0'}
               </div>
               <div className="text-[11px] text-emerald-700/80 font-medium mt-1">
                 ✓ {Math.round(((summary?.alreadyPaid || 0) / (summary?.totalQuotationValue || 1)) * 100)}% cumulative cleared across milestones
@@ -85,7 +85,7 @@ function PaymentsContent() {
                 Remaining Balance
               </div>
               <div className="text-2xl font-black text-gray-950 mt-2">
-                {summary?.remainingBalanceFormatted || '₹2,14,080'}
+                {summary?.remainingBalanceFormatted || '₹0'}
               </div>
               <div className="text-[11px] text-gray-500 mt-1">
                 Payable across upcoming stages
@@ -95,30 +95,30 @@ function PaymentsContent() {
 
           {/* Dynamic Milestones Math for 10% / 10% / 40% / 40% */}
           {(() => {
-            const totalVal = summary?.totalQuotationValue || 535199;
-            const m1 = Math.round(totalVal * 0.10); // ₹53,520
-            const m2 = Math.round(totalVal * 0.10); // ₹53,520
-            const m3 = Math.round(totalVal * 0.40) - 1; // ₹2,14,079
-            const m4 = totalVal - m1 - m2 - m3; // ₹2,14,080
+            const totalVal = summary?.totalQuotationValue || 0;
+            const m1 = Math.round(totalVal * 0.10);
+            const m2 = Math.round(totalVal * 0.10);
+            const m3 = Math.round(totalVal * 0.40);
+            const m4 = totalVal - m1 - m2 - m3;
 
             const m1Str = `₹${m1.toLocaleString('en-IN')}`;
             const m2Str = `₹${m2.toLocaleString('en-IN')}`;
             const m3Str = `₹${m3.toLocaleString('en-IN')}`;
             const m4Str = `₹${m4.toLocaleString('en-IN')}`;
 
-            const alreadyPaidNum = summary?.alreadyPaid ?? 321119;
-            const isM1Done = alreadyPaidNum >= m1 - 50;
-            const isM2Done = alreadyPaidNum >= m1 + m2 - 50;
-            const isM3Done = alreadyPaidNum >= m1 + m2 + m3 - 100;
-            const isM4Done = alreadyPaidNum >= totalVal - 50;
+            const alreadyPaidNum = summary?.alreadyPaid ?? 0;
+            const isM1Done = totalVal > 0 && alreadyPaidNum >= m1 - 50;
+            const isM2Done = totalVal > 0 && alreadyPaidNum >= m1 + m2 - 50;
+            const isM3Done = totalVal > 0 && alreadyPaidNum >= m1 + m2 + m3 - 100;
+            const isM4Done = totalVal > 0 && alreadyPaidNum >= totalVal - 50;
 
             const rmName = data.team?.relationshipManager?.name || 'Sharanya';
             const rmPhone = data.team?.relationshipManager?.phone || '+91 87550 09932';
-            const projectCode = data.profile?.projectCode || data.profile?.clientId || 'BLR-A1691';
+            const projectCode = data.profile?.projectCode || data.profile?.clientId || '';
             const cleanPhone = rmPhone.replace(/[^0-9]/g, '');
             const quoteUrl =
               summary?.quoteUrl ||
-              'https://design.hubinterior.com/quote/70877';
+              (summary?.quoteId ? `https://design.hubinterior.com/quote/${summary.quoteId}` : undefined);
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-8">
