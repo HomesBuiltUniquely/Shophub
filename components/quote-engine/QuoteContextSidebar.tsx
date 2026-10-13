@@ -152,7 +152,7 @@ export default function QuoteContextSidebar({
                   <option value="">No clients match that name</option>
                 ) : (
                   dropdownClients.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={`customer-${c.id}`} value={c.id}>
                       {c.name}
                     </option>
                   ))
@@ -188,7 +188,7 @@ export default function QuoteContextSidebar({
                   <option value="">No project for this client</option>
                 ) : (
                   customerProjects.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <option key={`project-${p.id}`} value={p.id}>
                       {p.projectName}
                     </option>
                   ))

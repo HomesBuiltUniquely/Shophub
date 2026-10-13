@@ -86,7 +86,7 @@ export function excelRowToProduct(row: Record<string, unknown>, mapping?: Column
   };
 
   const offering_name = asString(field('offering_name'));
-  const sku_id = asString(field('sku_id'));
+  const sku_id = asString(field('sku_id')).toUpperCase();
   if (!offering_name || !sku_id) return null;
 
   const category = asString(field('category')).toUpperCase() || 'FURNITURE';
@@ -100,7 +100,8 @@ export function excelRowToProduct(row: Record<string, unknown>, mapping?: Column
   const cost_price = asNumber(field('cost_price'));
   const discount = asNumber(field('discount'));
   const current_stock = asNumber(field('current_stock'));
-  const is_published = asBool(field('is_published'));
+  const publishedRaw = asString(field('is_published'));
+  const is_published = publishedRaw === '' ? true : asBool(publishedRaw);
 
   return {
     offering_name,

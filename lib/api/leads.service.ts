@@ -51,16 +51,55 @@ export const CRM_LEAD_TYPES = [
   'walkinlead',
   'whatsapplead',
   'ivrlead',
-];
+  'quikrlead',
+] as const;
 
 const extractLeads = (data: unknown): Lead[] => {
-  if (Array.isArray(data)) return data as Lead[];
-  const record = data as Record<string, unknown> | null | undefined;
-  if (Array.isArray(record?.content)) return record.content as Lead[];
-  if (Array.isArray(record?.leads)) return record.leads as Lead[];
-  if (Array.isArray(record?.data)) return record.data as Lead[];
-  return [];
+  if (Array.isArray(data)) {
+    return data.filter((item) => item && typeof item === 'object') as Lead[];
+  }
+  if (!data || typeof data !== 'object') return [];
+  const record = data as Record<string, unknown>;
+  const nestedKeys = ['content', 'leads', 'data', 'list', 'records', 'items', 'result', ...CRM_LEAD_TYPES];
+  for (const key of nestedKeys) {
+    const value = record[key];
+    if (Array.isArray(value)) return value as Lead[];
+    if (value && typeof value === 'object') {
+      const nested = extractLeads(value);
+      if (nested.length) {
+        return nested.map((lead) => ({
+          ...lead,
+          leadType: lead.leadType || lead.lead_type || key,
+        }));
+      }
+    }
+  }
+  const collected: Lead[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (!Array.isArray(value) || !value.length || typeof value[0] !== 'object') continue;
+    const sample = value[0] as Record<string, unknown>;
+    if (sample.id == null && sample.customerId == null && sample.customer_id == null) continue;
+    collected.push(
+      ...value.map((lead) => ({
+        ...(lead as Lead),
+        leadType: (lead as Lead).leadType || (lead as Lead).lead_type || key,
+      }))
+    );
+  }
+  return collected;
 };
+
+export function decodeUniqueCrmId(uniqueId: number): { leadType: string; crmLeadId: number } {
+  if (!uniqueId || uniqueId < 1_000_000) {
+    return { leadType: 'glead', crmLeadId: uniqueId };
+  }
+  const bucket = Math.floor(uniqueId / 1_000_000);
+  const crmLeadId = uniqueId % 1_000_000;
+  return {
+    leadType: CRM_LEAD_TYPES[bucket - 1] || 'glead',
+    crmLeadId,
+  };
+}
 
 type LeadsFetchResult = {
   leads: Lead[];
@@ -100,8 +139,8 @@ export const getFilteredLeads = async (params: LeadsFilterParams = {}): Promise<
 let crmLeadsInFlight: Promise<Lead[]> | null = null;
 
 /**
- * Concurrently fetch leads across multiple CRM lead tables (glead, mlead, formlead, addlead, websitelead)
- * WITHOUT requiring any backend changes!
+ * Concurrently fetch leads across every CRM lead table
+ * (glead, mlead, formlead, addlead, websitelead, walkinlead, whatsapplead, ivrlead, quikrlead)
  */
 export const getAllCrmLeads = async (params: LeadsFilterParams = {}): Promise<Lead[]> => {
   if (crmLeadsInFlight && Object.keys(params).length === 0) {
@@ -109,7 +148,7 @@ export const getAllCrmLeads = async (params: LeadsFilterParams = {}): Promise<Le
   }
 
   const load = (async () => {
-    const targetLeadTypes = ['glead', 'mlead', 'formlead', 'addlead', 'websitelead'];
+    const targetLeadTypes = [...CRM_LEAD_TYPES];
     const probe = await fetchFilteredLeads({ ...params, leadType: targetLeadTypes[0] });
     if (probe.authDenied) {
       return [];
@@ -264,6 +303,8 @@ export interface QuoteCustomer {
   phone?: string;
   email?: string;
   realName?: string;
+  leadType?: string;
+  crmLeadId?: number;
 }
 
 export interface QuoteProject {
@@ -272,6 +313,13 @@ export interface QuoteProject {
   customerId?: number;
   status?: string;
   leadId?: string;
+  leadType?: string;
+  crmLeadId?: number;
+}
+
+function uniqueCrmNumericId(leadType: string | undefined, id: number) {
+  const idx = Math.max(0, CRM_LEAD_TYPES.indexOf((leadType || 'glead') as (typeof CRM_LEAD_TYPES)[number]));
+  return (idx + 1) * 1_000_000 + Number(id || 0);
 }
 
 const HOWS_LEADS_FILTER_URL = 'https://hows.hubinterior.com/v1/leads/filter';
@@ -281,47 +329,58 @@ const DEFAULT_DESIGN_TOKEN = process.env.NEXT_PUBLIC_DESIGN_MODULE_TOKEN || 'ses
 
 function mapCrmLeads(rawLeads: Lead[]): { customers: QuoteCustomer[]; projects: QuoteProject[] } {
   const customers: QuoteCustomer[] = [];
-  const seenCust = new Set<string>();
+  const customerByCode = new Map<string, QuoteCustomer>();
 
   rawLeads.forEach((l) => {
-    const custId = l.customerId || l.customer_id || `BLR-A${l.id}`;
-    const trimmed = String(custId).trim();
-    if (seenCust.has(trimmed)) return;
-    seenCust.add(trimmed);
-    const numId = typeof l.id === 'string' ? parseInt(l.id, 10) || 1 : (l.id as number);
+    const leadType = String(l.leadType || l.lead_type || 'glead');
+    const origId = typeof l.id === 'string' ? parseInt(l.id, 10) || 1 : Number(l.id) || 1;
+    const uniqueId = uniqueCrmNumericId(leadType, origId);
+    const trimmed = String(l.customerId || l.customer_id || `BLR-A${origId}`).trim();
+    const customerKey = `${trimmed}::${leadType}`;
+    if (customerByCode.has(customerKey)) return;
     const resolvedName =
       (typeof l.name === 'string' && l.name.trim()) ||
-      DEFAULT_CRM_CUSTOMERS.find((d) => d.id === numId || d.customerId === trimmed)?.name ||
+      DEFAULT_CRM_CUSTOMERS.find((d) => d.id === origId || d.customerId === trimmed)?.name ||
       `Customer ${trimmed}`;
-    customers.push({
-      id: numId,
-      name: `${resolvedName} (${trimmed})`,
+    const customer: QuoteCustomer = {
+      id: uniqueId,
+      name: `${resolvedName} (${trimmed} · ${leadType})`,
       customerId: trimmed,
       phone: l.phoneNumber || (l.phone_number as string),
       email: l.email,
       realName: resolvedName,
-    });
+      leadType,
+      crmLeadId: origId,
+    };
+    customerByCode.set(customerKey, customer);
+    customers.push(customer);
   });
 
   const projects: QuoteProject[] = rawLeads.map((l) => {
-    const numId = typeof l.id === 'string' ? parseInt(l.id, 10) || 1 : (l.id as number);
-    const identifier = l.leadId || l.lead_id || l.customerId || `Lead-${l.id}`;
+    const leadType = String(l.leadType || l.lead_type || 'glead');
+    const origId = typeof l.id === 'string' ? parseInt(l.id, 10) || 1 : Number(l.id) || 1;
+    const uniqueId = uniqueCrmNumericId(leadType, origId);
+    const trimmed = String(l.customerId || l.customer_id || `BLR-A${origId}`).trim();
+    const identifier = l.leadId || l.lead_id || l.customerId || `Lead-${origId}`;
+    const statusValue =
+      typeof l.status === 'string'
+        ? l.status
+        : typeof l.status === 'object' && l.status !== null
+        ? String(
+            (l.status as Record<string, unknown>).milestoneStage ||
+              (l.status as Record<string, unknown>).stage ||
+              (l.status as Record<string, unknown>).substage ||
+              'Active'
+          )
+        : (l as { stage?: string }).stage || 'Active';
     return {
-      id: numId,
-      projectName: `Project #${l.id} (${identifier})`,
-      customerId: numId,
-      status:
-        typeof l.status === 'string'
-          ? l.status
-          : typeof l.status === 'object' && l.status !== null
-          ? String(
-              (l.status as Record<string, unknown>).milestoneStage ||
-                (l.status as Record<string, unknown>).stage ||
-                (l.status as Record<string, unknown>).substage ||
-                'Active'
-            )
-          : (l as { stage?: string }).stage || 'Active',
+      id: uniqueId,
+      crmLeadId: origId,
+      projectName: `Project #${origId} (${identifier} · ${leadType})`,
+      customerId: customerByCode.get(`${trimmed}::${leadType}`)?.id ?? uniqueId,
+      status: statusValue,
       leadId: l.leadId || (l.lead_id as string),
+      leadType,
     };
   });
 
@@ -365,8 +424,47 @@ function mapDesignQueue(items: Record<string, unknown>[]): {
   return { customers, projects };
 }
 
+async function fetchHowsJson(crmToken: string, search: URLSearchParams) {
+  const res = await fetch(`${HOWS_LEADS_FILTER_URL}?${search.toString()}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${crmToken}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    console.warn(`[CRM Bucket] ${search.toString()} → ${res.status}`);
+    return null;
+  }
+  return res.json();
+}
+
+async function fetchHowsLeadsByType(crmToken: string, leadType: string): Promise<Lead[]> {
+  const rawLeads: Lead[] = [];
+  const pageSize = 10;
+  let page = 0;
+  let totalPages = 1;
+
+  while (page < totalPages && page < 20) {
+    const search = new URLSearchParams({
+      leadType,
+      page: String(page),
+      size: String(pageSize),
+    });
+    const data = await fetchHowsJson(crmToken, search);
+    if (!data) break;
+    rawLeads.push(...extractLeads(data).map((lead) => ({ ...lead, leadType: lead.leadType || leadType })));
+    totalPages = Number((data as { totalPages?: number }).totalPages || 1);
+    page += 1;
+    if (!(data as { totalPages?: number }).totalPages) break;
+  }
+
+  return rawLeads;
+}
+
 /**
- * Sales/CRM bucket: GET /v1/leads/filter?leadType=glead&page=0&size=10
+ * Sales/CRM bucket: GET /v1/leads/filter?leadType=glead|mlead|formlead|addlead|websitelead|walkinlead|whatsapplead|ivrlead|quikrlead
  */
 export async function getCrmBucketCustomersAndProjects(
   token?: string,
@@ -381,30 +479,35 @@ export async function getCrmBucketCustomersAndProjects(
     return { customers: [], projects: [] };
   }
   try {
-    const rawLeads: Lead[] = [];
-    const pageSize = 10;
-    let page = 0;
-    let totalPages = 1;
+    const combined = new URLSearchParams();
+    CRM_LEAD_TYPES.forEach((leadType) => combined.append('leadType', leadType));
+    combined.set('page', '0');
+    combined.set('size', '50');
+    const combinedData = await fetchHowsJson(crmToken, combined);
+    const combinedLeads = combinedData
+      ? extractLeads(combinedData).map((lead) => ({
+          ...lead,
+          leadType: lead.leadType || lead.lead_type || 'glead',
+        }))
+      : [];
 
-    while (page < totalPages && page < 20) {
-      const res = await fetch(
-        `${HOWS_LEADS_FILTER_URL}?leadType=glead&page=${page}&size=${pageSize}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${crmToken}`,
-            'Content-Type': 'application/json',
-          },
-          cache: 'no-store',
-        }
-      );
-      if (!res.ok) break;
-      const data = (await res.json()) as { totalPages?: number };
-      rawLeads.push(...extractLeads(data));
-      totalPages = Number(data.totalPages || 1);
-      page += 1;
-      if (!data.totalPages) break;
+    const batches = await Promise.all(
+      CRM_LEAD_TYPES.map((leadType) => fetchHowsLeadsByType(crmToken, leadType))
+    );
+    const seen = new Set<string>();
+    const rawLeads: Lead[] = [];
+    for (const lead of [...combinedLeads, ...batches.flat()]) {
+      const type = String(lead.leadType || lead.lead_type || 'glead');
+      const key = `${type}:${lead.id}:${lead.customerId || lead.customer_id || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rawLeads.push({ ...lead, leadType: type });
     }
+
+    console.info(
+      '[CRM Bucket] lead counts',
+      Object.fromEntries(CRM_LEAD_TYPES.map((type) => [type, rawLeads.filter((lead) => lead.leadType === type).length]))
+    );
 
     if (rawLeads.length > 0) {
       return mapCrmLeads(rawLeads);

@@ -45,7 +45,11 @@ export async function ensureAuthSchema() {
 
   const [userCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM user LIKE 'lead_id'`);
   if (userCols.length === 0) {
-    await pool.query(`ALTER TABLE user ADD COLUMN lead_id VARCHAR(64) NULL`);
+    try {
+      await pool.query(`ALTER TABLE user ADD COLUMN lead_id VARCHAR(64) NULL`);
+    } catch (error: any) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
   }
 
   for (const demo of DEMO_USERS) {

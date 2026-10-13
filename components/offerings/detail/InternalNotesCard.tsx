@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { isInternalStaff } from '@/lib/auth/session';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface NoteItem {
   id: string;
@@ -22,6 +24,7 @@ export default function InternalNotesCard({
   allowedUsers = [],
   scheduleLaunch,
 }: InternalNotesProps) {
+  const readOnly = isInternalStaff(useCurrentUser());
   const [notes, setNotes] = useState<NoteItem[]>([]);
 
   useEffect(() => {
@@ -86,15 +89,17 @@ export default function InternalNotesCard({
         <h2 className="text-base font-bold text-gray-900 tracking-tight">
           Internal Notes & Integration
         </h2>
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="w-7 h-7 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-600 hover:text-black transition-colors"
-          title="Add internal note"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="w-7 h-7 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-600 hover:text-black transition-colors"
+            title="Add internal note"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Inline Add Note Input */}

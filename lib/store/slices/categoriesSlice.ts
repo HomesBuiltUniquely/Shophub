@@ -98,7 +98,7 @@ export const fetchCatalogOfferingsThunk = createAsyncThunk(
   'categories/fetchCatalogOfferingsThunk',
   async () => {
     const [productsRes, secondaryCats, primaryCats] = await Promise.all([
-      getAllProducts(0, 100),
+      getAllProducts(0, 200),
       getAllSecondaryCategories(),
       getAllPrimaryCategories(),
     ]);
