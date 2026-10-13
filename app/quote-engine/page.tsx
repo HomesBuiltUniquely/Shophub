@@ -23,6 +23,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   company?: string;
+  customerId?: string;
 }
 
 export interface Project {
@@ -30,6 +31,7 @@ export interface Project {
   projectName: string;
   customerId?: number;
   status?: string;
+  leadId?: string;
 }
 
 export interface Room {
@@ -743,15 +745,43 @@ function QuoteEngineContent() {
     }
   };
 
-  const handleShareQuote = () => {
-    const snapshot = {
+  const buildInvoiceSnapshot = () => {
+    const customer = customers.find((c) => c.id === selectedCustomerId);
+    const project = projects.find((p) => p.id === selectedProjectId);
+    return {
       quote,
-      customerName: customers.find((c) => c.id === selectedCustomerId)?.name || quote.customerName,
-      projectName: projects.find((p) => p.id === selectedProjectId)?.projectName || quote.projectName,
+      customerName: customer?.name || quote.customerName,
+      customerEmail: customer?.email,
+      customerId: customer?.id,
+      customerCode: customer?.customerId,
+      source: 'staff' as const,
+      projectName: project?.projectName || quote.projectName,
+      leadId: project?.leadId ? String(project.leadId) : customer?.id ? String(customer.id) : undefined,
       validityPeriod,
       issuedBy: user?.name || 'Hub Interior',
     };
-    const id = saveSharedQuote(snapshot);
+  };
+
+  const persistOfferingsInvoice = async () => {
+    const snapshot = buildInvoiceSnapshot();
+    try {
+      const res = await fetch('/api/quote/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(snapshot),
+      });
+      const data = await res.json().catch(() => ({}));
+      const id = typeof data.id === 'string' ? data.id : saveSharedQuote(snapshot);
+      saveSharedQuote(snapshot, id);
+      return id;
+    } catch {
+      return saveSharedQuote(snapshot);
+    }
+  };
+
+  const handleShareQuote = async () => {
+    const id = await persistOfferingsInvoice();
     const path = invoiceSharePath(id);
     const url = `${window.location.origin}${path}`;
     navigator.clipboard?.writeText(url);
@@ -759,7 +789,8 @@ function QuoteEngineContent() {
     showToast('Invoice opened. Link copied to clipboard.');
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
+    await persistOfferingsInvoice();
     setShowInvoice(true);
     setIsGeneratingPdf(false);
   };

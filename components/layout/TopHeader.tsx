@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import SignOutButton from '@/components/auth/SignOutButton';
 import { firstNameFrom, roleLabel, useCurrentUser } from '@/lib/auth/useCurrentUser';
+import { isInternalStaff } from '@/lib/auth/session';
 import { readLocalProfile } from '@/lib/profile-local';
 
 interface TopHeaderProps {
@@ -122,13 +123,14 @@ export default function TopHeader({
             </svg>
           </button>
 
-          {/* Create Offering Button */}
-          <button onClick={()=>router.push('/offerings/CreateOfferings')} className="flex items-center gap-2 bg-black text-white pl-3 pr-4 py-2 rounded-md text-xs font-semibold hover:bg-gray-800 transition-colors shadow-xs">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Create Offering</span>
-          </button>
+          {!isInternalStaff(user) && (
+            <button onClick={()=>router.push('/offerings/CreateOfferings')} className="flex items-center gap-2 bg-black text-white pl-3 pr-4 py-2 rounded-md text-xs font-semibold hover:bg-gray-800 transition-colors shadow-xs">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Create Offering</span>
+            </button>
+          )}
 
           <SignOutButton className="ml-1 rounded-md px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
 
@@ -144,7 +146,7 @@ export default function TopHeader({
             <button
               className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200 hover:ring-2 hover:ring-gray-300 transition-all bg-gray-100 text-[10px] font-bold text-gray-700 grid place-items-center"
               title={user?.email || firstNameFrom(user)}
-              onClick={() => router.push('/settings')}
+              onClick={() => router.push(isInternalStaff(user) ? '/quote-engine' : '/settings')}
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />

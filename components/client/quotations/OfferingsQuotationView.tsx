@@ -12,6 +12,14 @@ import {
   clearDraft,
   OfferingDraftItem,
 } from '@/lib/client/offeringsDraftStore';
+import {
+  addSubmittedOrder,
+  getSubmittedOrders,
+  saveSubmittedOrders,
+  type OfferingsSubmittedOrder,
+} from '@/lib/client/offerings-order';
+import { useClientDashboard } from '@/lib/client/ClientDashboardContext';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface OfferingsQuotationViewProps {
   onShowToast: (msg: string) => void;
@@ -21,14 +29,32 @@ const fmt = (n: number) =>
   n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotationViewProps) {
+  const user = useCurrentUser();
+  const { data, leadId } = useClientDashboard();
   const [items, setItems] = useState<OfferingDraftItem[]>([]);
+  const [orders, setOrders] = useState<OfferingsSubmittedOrder[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
   // Hydrate from localStorage on mount (SSR-safe)
   useEffect(() => {
     setItems(getDraftItems());
+    setOrders(getSubmittedOrders());
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (leadId) params.set('leadId', leadId);
+    if (data.profile.clientId) params.set('clientId', data.profile.clientId);
+    fetch(`/api/client/offerings-orders?${params.toString()}`, { credentials: 'include', cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (Array.isArray(json?.orders)) {
+          setOrders(json.orders);
+          saveSubmittedOrders(json.orders);
+        }
+      })
+      .catch(() => {});
+  }, [leadId, data.profile.clientId]);
 
   const refresh = useCallback(() => setItems(getDraftItems()), []);
 
@@ -45,13 +71,33 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    // Simulate API call — replace with real endpoint when ready
-    await new Promise((r) => setTimeout(r, 1200));
-    clearDraft();
-    refresh();
-    setIsSubmitting(false);
-    setSubmitted(true);
-    onShowToast('Offerings quotation submitted to your Lead Designer!');
+    try {
+      const res = await fetch('/api/client/offerings-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          items,
+          customerName: data.profile.name,
+          customerEmail: user?.email || data.profile.email,
+          leadId,
+          clientId: data.profile.clientId,
+          projectName: data.profile.propertyType || 'Offerings selection',
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not submit selections');
+      if (json.order) {
+        setOrders(addSubmittedOrder(json.order));
+      }
+      clearDraft();
+      refresh();
+      onShowToast('Selections sent to your designer. Invoice generated.');
+    } catch (err: unknown) {
+      onShowToast((err as Error).message || 'Could not submit selections');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const grouped = getDraftGroupedByRoom(items);
@@ -59,10 +105,9 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
   const summary = getDraftSummary(items);
 
   /* ─── Empty State ──────────────────────────────────────────────── */
-  if (submitted || items.length === 0) {
+  if (items.length === 0 && orders.length === 0) {
     return (
       <div className="bg-white rounded-[28px] sm:rounded-[32px] p-10 border border-black/[0.04] shadow-sm flex flex-col items-center justify-center min-h-[340px] gap-5 text-center">
-        {/* Bag icon */}
         <div className="w-16 h-16 rounded-full bg-[#FAF7F2] flex items-center justify-center">
           <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -71,12 +116,10 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
 
         <div>
           <p className="text-lg font-extrabold text-gray-950 tracking-tight">
-            {submitted ? 'Draft Submitted!' : 'Your Offerings Draft is Empty'}
+            Your Offerings Draft is Empty
           </p>
           <p className="text-sm text-gray-500 mt-1 max-w-xs">
-            {submitted
-              ? 'Your Lead Designer will review your selections and prepare a formal quotation shortly.'
-              : 'Browse the catalog and click "Add to Quotation Draft" on any offering to begin building your selection.'}
+            Browse the catalog and click "Add to Quotation Draft" on any offering to begin building your selection.
           </p>
         </div>
 
@@ -96,7 +139,74 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
   /* ─── Draft Table ───────────────────────────────────────────────── */
   return (
     <div className="space-y-6">
+      {orders.map((order) => {
+        const groupedOrder = getDraftGroupedByRoom(order.items || []);
+        const orderSummary = getDraftSummary(order.items || []);
+        return (
+          <div key={order.id} className="bg-white rounded-[24px] border border-black/[0.04] shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-gray-100/80 bg-[#FAF7F2]">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Sent to designer</div>
+                <div className="text-sm font-extrabold text-gray-950 mt-0.5">
+                  {order.quoteNumber || 'Offerings invoice'} · ₹ {fmt(order.grandTotal ?? orderSummary.grandTotal)}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {orderSummary.itemCount} item{orderSummary.itemCount !== 1 ? 's' : ''} you chose — still visible here after submit.
+                </div>
+              </div>
+              {order.invoiceId && (
+                <Link
+                  href={`/quote-invoice?s=${encodeURIComponent(order.invoiceId)}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 bg-black text-white text-xs font-bold py-2 px-4 rounded-full"
+                >
+                  View invoice
+                </Link>
+              )}
+            </div>
+            <div className="divide-y divide-gray-100/60">
+              {Object.entries(groupedOrder).map(([room, roomItems]) => (
+                <div key={room} className="px-6 py-4">
+                  <div className="text-[11px] font-black uppercase tracking-widest text-gray-500 mb-3">{room}</div>
+                  <div className="space-y-3">
+                    {roomItems.map((item) => {
+                      const { grandTotal } = getDraftItemTotals(item);
+                      return (
+                        <div key={item.draftId} className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-[#FAF7F2] overflow-hidden shrink-0">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                            ) : null}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-bold text-gray-950 truncate">{item.offeringName}</div>
+                            <div className="text-[11px] text-gray-500">
+                              {item.sku} · Qty {item.quantity}
+                            </div>
+                          </div>
+                          <div className="text-sm font-black text-gray-950">₹ {fmt(grandTotal)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
+      {items.length === 0 && orders.length > 0 && (
+        <Link
+          href="/client/offerings"
+          className="inline-flex items-center gap-2 bg-black text-white text-xs font-bold py-3 px-6 rounded-full hover:bg-zinc-800"
+        >
+          Add more offerings
+        </Link>
+      )}
+
+      {items.length > 0 && (
+      <div className="space-y-6">
       {/* Banner */}
       <div className="flex items-center justify-between bg-[#FAF7F2] border border-[#EFE8DC] rounded-2xl px-5 py-3.5">
         <div className="flex items-center gap-2.5 text-xs font-bold text-gray-700">
@@ -326,6 +436,8 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
           </div>
         </div>
       </div>
+      </div>
+      )}
     </div>
   );
 }

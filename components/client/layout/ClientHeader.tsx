@@ -84,13 +84,17 @@ export default function ClientHeader({
             </div>
           </div>
           <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gray-300 ring-1 ring-black/10 shrink-0">
-            <Image
-              src={data.profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-              alt={data.profile.name}
-              fill
-              className="object-cover"
-              sizes="36px"
-            />
+            {data.profile.avatarUrl?.startsWith('/') ? (
+              <img src={data.profile.avatarUrl} alt={data.profile.name} className="h-full w-full object-cover" />
+            ) : (
+              <Image
+                src={data.profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                alt={data.profile.name}
+                fill
+                className="object-cover"
+                sizes="36px"
+              />
+            )}
           </div>
         </div>
       </div>

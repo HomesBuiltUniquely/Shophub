@@ -3,6 +3,8 @@
 import React from 'react';
 import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import OfferingRow from './OfferingRow';
+import { isInternalStaff } from '@/lib/auth/session';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface OfferingTableProps {
   offerings: OfferingResponse[];
@@ -10,6 +12,9 @@ interface OfferingTableProps {
 }
 
 export default function OfferingTable({ offerings, isLoading = false }: OfferingTableProps) {
+  const user = useCurrentUser();
+  const hideActions = isInternalStaff(user);
+
   if (offerings.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -83,12 +88,14 @@ export default function OfferingTable({ offerings, isLoading = false }: Offering
               >
                 UPDATED
               </th>
+              {!hideActions && (
               <th
                 scope="col"
                 className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider"
               >
                 ACTIONS
               </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">

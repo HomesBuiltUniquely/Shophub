@@ -195,11 +195,5 @@ export const CLIENT_NAV_ITEMS: ClientNavItem[] = [
   { name: 'Offerings', href: '/client/offerings', iconId: 'offerings' },
   { name: 'Payments', href: '/client/payments', iconId: 'payments' },
   { name: 'Invoices', href: '/client/invoices', iconId: 'invoices' },
-  { name: 'Agreements', href: '/client/agreements', iconId: 'agreements' },
-  { name: 'Warranty', href: '/client/warranty', iconId: 'warranty' },
-  { name: 'Support Tickets', href: '/client/support-tickets', iconId: 'support-tickets' },
-  { name: 'Design Inspirations', href: '/client/design-inspirations', iconId: 'design-inspirations' },
-  { name: 'Referrals', href: '/client/referrals', iconId: 'referrals' },
-  { name: 'Documents', href: '/client/documents', iconId: 'documents' },
   { name: 'Profile & Settings', href: '/client/settings', iconId: 'settings' },
 ];

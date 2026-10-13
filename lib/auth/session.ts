@@ -62,6 +62,24 @@ export function canManageCatalog(role?: PortalRole | null) {
   return role === 'admin' || role === 'enterprise' || role === 'crm' || role === 'designer';
 }
 
+export function isInternalStaff(user?: SessionUser | null) {
+  return user?.loginSource === 'internal' || user?.role === 'crm' || user?.role === 'designer';
+}
+
+export function isInternalAllowedPath(pathname: string) {
+  if (pathname.startsWith('/api/')) return true;
+  if (pathname.startsWith('/offerings/CreateOfferings')) return false;
+  return (
+    pathname.startsWith('/offerings') ||
+    pathname.startsWith('/enterprise/offerings') ||
+    pathname.startsWith('/quote-engine') ||
+    pathname.startsWith('/quote-making') ||
+    pathname.startsWith('/quote-invoice') ||
+    pathname === '/' ||
+    pathname === '/login'
+  );
+}
+
 export function isEnterprisePath(pathname: string) {
   return (
     pathname.startsWith('/offerings') ||
