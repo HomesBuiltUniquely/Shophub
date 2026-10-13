@@ -13,12 +13,6 @@ import {
   OfferingsIcon,
   PaymentsIcon,
   InvoicesIcon,
-  AgreementsIcon,
-  WarrantyIcon,
-  SupportTicketsIcon,
-  DesignInspirationsIcon,
-  ReferralsIcon,
-  DocumentsIcon,
   SettingsIcon,
 } from '../icons/ClientIcons';
 
@@ -29,12 +23,6 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'offerings': OfferingsIcon,
   'payments': PaymentsIcon,
   'invoices': InvoicesIcon,
-  'agreements': AgreementsIcon,
-  'warranty': WarrantyIcon,
-  'support-tickets': SupportTicketsIcon,
-  'design-inspirations': DesignInspirationsIcon,
-  'referrals': ReferralsIcon,
-  'documents': DocumentsIcon,
   'settings': SettingsIcon,
 };
 

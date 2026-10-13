@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isInternalStaff } from '@/lib/auth/session';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 const menuItems = [
   { name: 'DASHBOARD', href: '/dashboard', icon: 'dashboard' },
@@ -13,8 +15,14 @@ const menuItems = [
   { name: 'SETTINGS', href: '/settings', icon: 'settings' },
 ];
 
+const INTERNAL_HREFS = new Set(['/offerings', '/quote-engine']);
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const user = useCurrentUser();
+  const visibleItems = isInternalStaff(user)
+    ? menuItems.filter((item) => INTERNAL_HREFS.has(item.href))
+    : menuItems;
 
   return (
     <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0">
@@ -39,7 +47,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-3 pt-4">
         <ul className="space-y-0.5">
-          {menuItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive =
               item.href === '/offerings'
                 ? pathname === '/offerings' || pathname.startsWith('/offerings/') || pathname === '/enterprise/offerings'

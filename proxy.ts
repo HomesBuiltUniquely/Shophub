@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import {
   decodeSession,
   isEnterprisePath,
+  isInternalAllowedPath,
+  isInternalStaff,
   redirectForRole,
   SESSION_COOKIE,
 } from '@/lib/auth/session';
@@ -29,6 +31,10 @@ export function proxy(request: NextRequest) {
 
   if ((session?.role === 'enterprise' || session?.role === 'admin') && pathname.startsWith('/client')) {
     return NextResponse.redirect(new URL(redirectForRole(session.role), request.url));
+  }
+
+  if (session && isInternalStaff(session) && !isPublic && !isInternalAllowedPath(pathname)) {
+    return NextResponse.redirect(new URL('/quote-engine', request.url));
   }
 
   return NextResponse.next();

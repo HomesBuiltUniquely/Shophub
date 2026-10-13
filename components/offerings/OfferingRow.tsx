@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { OfferingResponse } from '@/lib/types/offerings/offering.types';
+import { isInternalStaff } from '@/lib/auth/session';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface OfferingRowProps {
   offering: OfferingResponse;
@@ -21,6 +23,8 @@ function getInitials(name: string = ''): string {
 
 export default function OfferingRow({ offering }: OfferingRowProps) {
   const router = useRouter();
+  const user = useCurrentUser();
+  const hideActions = isInternalStaff(user);
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl =
     offering.product?.image_url && !offering.product.image_url.includes('example.com')
@@ -166,12 +170,11 @@ export default function OfferingRow({ offering }: OfferingRowProps) {
         </div>
       </td>
 
-      {/* 10. ACTIONS - Add to Cart */}
+      {!hideActions && (
       <td className="px-6 py-4">
         <div className="flex items-center gap-2">
         <button
           onClick={() => {
-            // Navigate to quote engine with this item
             const params = new URLSearchParams({
               addToCart: 'true',
               prodId: offering.prodId?.toString() || '',
@@ -202,6 +205,7 @@ export default function OfferingRow({ offering }: OfferingRowProps) {
         </button>
         </div>
       </td>
+      )}
     </tr>
   );
 }

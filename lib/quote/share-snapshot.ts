@@ -3,15 +3,18 @@ import type { QuoteModel } from '@/lib/types/quote.types';
 export type SharedQuoteSnapshot = {
   quote: QuoteModel;
   customerName?: string;
+  customerEmail?: string;
+  customerId?: number;
   projectName?: string;
+  leadId?: string;
   validityPeriod?: string;
   issuedBy?: string;
 };
 
 const STORAGE_PREFIX = 'shophub_quote_share_';
 
-export function saveSharedQuote(snapshot: SharedQuoteSnapshot) {
-  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+export function saveSharedQuote(snapshot: SharedQuoteSnapshot, existingId?: string) {
+  const id = existingId || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   try {
     localStorage.setItem(`${STORAGE_PREFIX}${id}`, JSON.stringify(snapshot));
   } catch {
