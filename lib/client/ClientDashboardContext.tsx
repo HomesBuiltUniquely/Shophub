@@ -19,7 +19,7 @@ interface ClientDashboardContextValue {
   closeContactModal: () => void;
 }
 
-const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '2399';
+const defaultLeadId = process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || '';
 const defaultInitialData: ClientDashboardData = mapErpToDashboard({}, defaultLeadId);
 
 const ClientDashboardContext = createContext<ClientDashboardContextValue | null>(null);

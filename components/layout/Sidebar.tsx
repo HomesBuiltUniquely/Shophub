@@ -9,13 +9,14 @@ const menuItems = [
   { name: 'DASHBOARD', href: '/dashboard', icon: 'dashboard' },
   { name: 'MASTER CATALOG', href: '/offerings', icon: 'list' },
   { name: 'QUOTE ENGINE', href: '/quote-engine', icon: 'quote' },
+  { name: 'OFFERING INVOICE', href: '/offering-invoice', icon: 'invoice' },
   { name: 'BRANDS', href: '/brands', icon: 'brand' },
   { name: 'CATEGORIES', href: '/categories', icon: 'category' },
   { name: 'IMPORT', href: '/import', icon: 'upload' },
   { name: 'SETTINGS', href: '/settings', icon: 'settings' },
 ];
 
-const INTERNAL_HREFS = new Set(['/offerings', '/quote-engine']);
+const INTERNAL_HREFS = new Set(['/offerings', '/quote-engine', '/offering-invoice']);
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -53,8 +54,10 @@ export default function Sidebar() {
                 ? pathname === '/offerings' || pathname.startsWith('/offerings/') || pathname === '/enterprise/offerings'
                 : item.href === '/quote-engine'
                   ? pathname.startsWith('/quote-engine') || pathname.startsWith('/quote-making')
-                  : pathname === item.href ||
-                    (item.href !== '/' && pathname.startsWith(item.href));
+                  : item.href === '/offering-invoice'
+                    ? pathname.startsWith('/offering-invoice')
+                    : pathname === item.href ||
+                      (item.href !== '/' && pathname.startsWith(item.href));
             return (
               <li key={item.href}>
                 <Link
@@ -81,6 +84,11 @@ export default function Sidebar() {
                   {item.icon === 'quote' && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                  {item.icon === 'invoice' && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   )}
                   {item.icon === 'brand' && (

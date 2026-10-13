@@ -112,63 +112,7 @@ export async function getLeadDetails(id: string | number): Promise<any | null> {
     }
   }
 
-  // If lead is Varnika (1691 / AL-3F565F0AKF / BLR-A1691)
-  if (
-    str === '1691' ||
-    str.includes('3F565') ||
-    str === 'BLR-A1691' ||
-    str.toLowerCase().includes('varnika') ||
-    !str ||
-    str === 'default'
-  ) {
-    const addLead = await erpFetch<any>('v1/AddLead/details/1691');
-    if (addLead && addLead.id) return addLead;
-  }
-
-  // If lead is 462 or WL-1NAT2HK6WW (YB Prashant)
-  if (str === '462' || str.includes('1NAT2HK6WW') || str === 'BLR-A0462') {
-    const webLead = await erpFetch<any>('v1/WebsiteLead/details/462');
-    if (webLead && webLead.id) return webLead;
-  }
-
-  // If starts with AL- (Add Lead)
-  if (str.startsWith('AL-')) {
-    const digits = str.replace(/\D/g, '');
-    if (digits) {
-      const res = await erpFetch<any>(`v1/AddLead/details/${digits}`);
-      if (res && res.id) return res;
-    }
-  }
-
-  // If starts with WL- (Website Lead)
-  if (str.startsWith('WL-')) {
-    const digits = str.replace(/\D/g, '');
-    if (digits) {
-      const res = await erpFetch<any>(`v1/WebsiteLead/details/${digits}`);
-      if (res && res.id) return res;
-    }
-  }
-
-  // Digits lookup
-  const digits = str.replace(/\D/g, '');
-  if (digits && digits.length >= 1) {
-    if (digits === '1691') {
-      const addLead = await erpFetch<any>('v1/AddLead/details/1691');
-      if (addLead && addLead.id) return addLead;
-    }
-    if (digits === '462') {
-      const webLead = await erpFetch<any>('v1/WebsiteLead/details/462');
-      if (webLead && webLead.id) return webLead;
-    }
-
-    const addRes = await erpFetch<any>(`v1/AddLead/details/${digits}`);
-    if (addRes && addRes.id && !addRes.name?.toLowerCase().includes('spam') && !addRes.name?.toLowerCase().includes('fake')) {
-      return addRes;
-    }
-
-    const webRes = await erpFetch<any>(`v1/WebsiteLead/details/${digits}`);
-    if (webRes && webRes.id) return webRes;
-  }
+  if (!str) return null;
 
   // Check DesignMod database (e.g. Lead 99903 / Client)
   try {
@@ -210,10 +154,43 @@ export async function getLeadDetails(id: string | number): Promise<any | null> {
     console.warn('[ERP Client] DesignMod lead lookup error:', err);
   }
 
-  // Default to active booked client Varnika (AddLead 1691)
-  const defaultAdd = await erpFetch<any>('v1/AddLead/details/1691');
-  if (defaultAdd && defaultAdd.id) return defaultAdd;
-  return erpFetch<any>('v1/WebsiteLead/details/462');
+  // If lead is 462 or WL-1NAT2HK6WW (YB Prashant)
+  if (str === '462' || str.includes('1NAT2HK6WW') || str === 'BLR-A0462') {
+    const webLead = await erpFetch<any>('v1/WebsiteLead/details/462');
+    if (webLead && webLead.id) return webLead;
+  }
+
+  // If starts with AL- (Add Lead)
+  if (str.startsWith('AL-')) {
+    const digits = str.replace(/\D/g, '');
+    if (digits) {
+      const res = await erpFetch<any>(`v1/AddLead/details/${digits}`);
+      if (res && res.id) return res;
+    }
+  }
+
+  // If starts with WL- (Website Lead)
+  if (str.startsWith('WL-')) {
+    const digits = str.replace(/\D/g, '');
+    if (digits) {
+      const res = await erpFetch<any>(`v1/WebsiteLead/details/${digits}`);
+      if (res && res.id) return res;
+    }
+  }
+
+  // Digits lookup
+  const digits = str.replace(/\D/g, '');
+  if (digits && digits.length >= 1) {
+    const addRes = await erpFetch<any>(`v1/AddLead/details/${digits}`);
+    if (addRes && addRes.id && !addRes.name?.toLowerCase().includes('spam') && !addRes.name?.toLowerCase().includes('fake')) {
+      return addRes;
+    }
+
+    const webRes = await erpFetch<any>(`v1/WebsiteLead/details/${digits}`);
+    if (webRes && webRes.id) return webRes;
+  }
+
+  return null;
 }
 
 
@@ -287,7 +264,8 @@ export interface DesignQuotePaymentSummary {
 export async function getDesignModulePaymentSummary(
   leadId: string | number
 ): Promise<DesignQuotePaymentSummary | null> {
-  const numericId = typeof idToNum(leadId) === 'number' ? idToNum(leadId) : 2341;
+  const numericId = typeof idToNum(leadId) === 'number' ? idToNum(leadId) : 0;
+  if (!numericId) return null;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3500);
 
@@ -354,9 +332,6 @@ export async function getDesignModulePaymentSummary(
 
 function idToNum(id: string | number): number {
   if (typeof id === 'number') {
-    if (id === 99903) return 99903;
-    if (id === 1691) return 2341; // Varnika's DesignMod ID
-    if (id === 462) return 2399; // YB Prashant's DesignMod ID
     return id;
   }
   const str = String(id || '').trim();
@@ -364,17 +339,13 @@ function idToNum(id: string | number): number {
     str === '99903' ||
     str.includes('99903') ||
     str.includes('KJT5T5P7EF') ||
-    str.includes('go@hubinterior.com') ||
-    str.toLowerCase().includes('client')
+    str.includes('go@hubinterior.com')
   ) {
     return 99903;
-  }
-  if (str.includes('1691') || str.includes('3F565') || str.includes('BLR-A1691') || str.toLowerCase().includes('varnika')) {
-    return 2341;
   }
   if (str.includes('462') || str.includes('1NAT2HK6WW') || str.includes('BLR-A0462')) {
     return 2399;
   }
   const match = str.replace(/\D/g, '');
-  return match ? parseInt(match, 10) : 2341;
+  return match ? parseInt(match, 10) : 0;
 }

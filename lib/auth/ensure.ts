@@ -27,8 +27,8 @@ const DEMO_USERS = [
     uuid: 102,
     email: 'client@hubinterior.com',
     password: 'Client@123',
-    first_name: 'Varnika',
-    last_name: 'Sharma',
+    first_name: 'Client',
+    last_name: 'User',
     role: 'INTERIOR_CLIENT',
     brand_name: '',
   },
@@ -50,13 +50,12 @@ export async function ensureAuthSchema() {
 
   for (const demo of DEMO_USERS) {
     const hash = await hashPassword(demo.password);
-    const demoLeadId = demo.email === 'client@hubinterior.com' ? '1691' : null;
     await pool.query(
       `INSERT INTO user (
         uuid, email, password, first_name, last_name, role, brand_name, lead_id, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE role = VALUES(role), brand_name = VALUES(brand_name), lead_id = COALESCE(VALUES(lead_id), lead_id)`,
-      [demo.uuid, demo.email, hash, demo.first_name, demo.last_name, demo.role, demo.brand_name, demoLeadId]
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NOW())
+      ON DUPLICATE KEY UPDATE role = VALUES(role), brand_name = VALUES(brand_name), first_name = VALUES(first_name), last_name = VALUES(last_name)`,
+      [demo.uuid, demo.email, hash, demo.first_name, demo.last_name, demo.role, demo.brand_name]
     );
     await pool.query(
       `INSERT INTO login (username, password, role, logintime)

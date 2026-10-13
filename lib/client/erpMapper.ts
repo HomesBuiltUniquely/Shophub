@@ -216,13 +216,13 @@ function getAestheticClientMilestones(
 /**
  * Transform ERP data into a refined, Pinterest-aesthetic ClientDashboardData
  */
-export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): ClientDashboardData {
-  const isLive = Boolean(raw.lead);
+export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientDashboardData {
+  const isLive = Boolean(raw.lead && (raw.lead.id || raw.lead.name));
   const lead = raw.lead || {};
 
-  // Clean customer name (Default: Varnika)
-  const rawName = lead.name ? lead.name.trim() : '';
-  let clientName = 'Varnika';
+  // Clean customer name (Default: Client)
+  const rawName = lead.name ? lead.name.trim() : (lead.customerName ? lead.customerName.trim() : '');
+  let clientName = 'Client';
   if (
     rawName &&
     !rawName.toLowerCase().includes('test') &&
@@ -239,11 +239,15 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     }
   }
 
-  // Clean customer ID (e.g. BLR-A1691)
+  // Clean customer ID
   const cleanId =
     lead.customerId ||
     lead.customer_id ||
-    (lead.leadId || lead.lead_identifier ? `BLR-${String(lead.leadId || lead.lead_identifier).replace(/\D/g, '')}` : 'BLR-A1691');
+    (lead.leadId || lead.lead_identifier || lead.leadIdentifier
+      ? `BLR-${lead.leadIdentifier || lead.lead_identifier || String(lead.leadId).replace(/\D/g, '')}`
+      : fallbackLeadId
+      ? `BLR-A${String(fallbackLeadId).replace(/\D/g, '').padStart(4, '0')}`
+      : 'BLR-CLIENT');
 
   // Clean property type (e.g. 2 BHK Apartment)
   let propType = '2 BHK Apartment';
@@ -273,34 +277,32 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     projectGreeting,
     propertyType: propType,
     propertyDetails: propDetails,
-    leadId: lead.id ? String(lead.id) : (lead.leadId || lead.lead_identifier || fallbackLeadId),
-    phone: lead.phoneNumber || lead.phone_number || '8755009932',
-    email: lead.email || 'varnika.gupta03@yahoo.com',
+    leadId: lead.id ? String(lead.id) : (lead.leadId || lead.lead_identifier || fallbackLeadId || ''),
+    phone: lead.phoneNumber || lead.phone_number || lead.contactNo || '',
+    email: lead.email || lead.clientEmail || '',
   };
 
   // 3. Design Module 10% - 10% - 40% - 40% Milestone Payment Breakdown & Remaining Balance
   const dp = raw.designPayment;
-  const isVarnika =
-    clientName.toLowerCase().includes('varnika') ||
-    String(fallbackLeadId).includes('1691') ||
-    String(fallbackLeadId).includes('3F565') ||
-    String(fallbackLeadId).includes('2341');
-
-  const quoteNum = dp?.quoteNum || (isVarnika ? 'Q-52330-003' : 'Q-53993-001');
-  const quoteId = dp?.quoteId || (lead.quoteSentInfo?.quoteId ? Number(lead.quoteSentInfo.quoteId) : (isVarnika ? 70877 : 73761));
+  const quoteNum = dp?.quoteNum || (lead.quoteNum ? String(lead.quoteNum) : (lead.prolanceQuoteId ? `Q-${lead.prolanceQuoteId}` : 'Q-PROJ-001'));
+  const quoteId = dp?.quoteId || (lead.quoteSentInfo?.quoteId ? Number(lead.quoteSentInfo.quoteId) : (lead.quoteId ? Number(lead.quoteId) : (lead.prolanceQuoteId ? Number(lead.prolanceQuoteId) : null)));
 
   // Total Quotation Value (latest)
-  let totalQuoteValue = isVarnika ? 535199 : 1249949;
+  let totalQuoteValue = 0;
   if (dp?.totalPayableAmount && Number(dp.totalPayableAmount) > 0) {
     totalQuoteValue = Number(dp.totalPayableAmount);
   } else if (raw.hubQuote?.totalPayableAmount && Number(raw.hubQuote.totalPayableAmount) > 0) {
     totalQuoteValue = Number(raw.hubQuote.totalPayableAmount);
+  } else if (lead.totalPayableAmount && Number(lead.totalPayableAmount) > 0) {
+    totalQuoteValue = Number(lead.totalPayableAmount);
   }
 
   // Already Paid (sales + design modules)
-  let alreadyPaid = isVarnika ? 321119 : 125000;
+  let alreadyPaid = 0;
   if (dp?.totalPaidCumulative && Number(dp.totalPaidCumulative) > 0) {
     alreadyPaid = Number(dp.totalPaidCumulative);
+  } else if (lead.totalPaidCumulative && Number(lead.totalPaidCumulative) > 0) {
+    alreadyPaid = Number(lead.totalPaidCumulative);
   }
 
   // 2. Stage calculation based on CRM stage and payments
@@ -404,7 +406,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     lead.quoteLink ||
     lead.quoteSentInfo?.quoteLink ||
     raw.hubQuote?.hubCustomerQuoteUrl ||
-    `https://design.hubinterior.com/quote/${quoteId || (isVarnika ? '70877' : '75774')}`;
+    (quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : undefined);
 
   const paymentSummary: MilestonePaymentSummaryData = {
     quoteNum,
@@ -486,8 +488,8 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = '1691'): Cli
     lead.quoteSentInfo?.quoteId ||
     raw.hubQuote?.hubQuoteId ||
     quoteId ||
-    (quoteUrl.match(/quote\/(\d+)/) ? quoteUrl.match(/quote\/(\d+)/)![1] : (isVarnika ? '70877' : '73761'));
-  const quoteAuthor = lead.quoteSentInfo?.quoteSentBy || lead.assignee || (isVarnika ? 'Seher' : 'Meghana');
+    (quoteUrl ? quoteUrl.match(/quote\/(\d+)/)?.[1] || '' : '');
+  const quoteAuthor = lead.quoteSentInfo?.quoteSentBy || lead.assignee || 'Design Team';
 
   upcomingActions.push({
     id: 'act-quote',
