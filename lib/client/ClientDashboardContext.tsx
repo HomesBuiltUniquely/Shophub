@@ -26,9 +26,9 @@ const ClientDashboardContext = createContext<ClientDashboardContextValue | null>
 
 export function ClientDashboardProvider({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
-  const initialLeadId = searchParams?.get('leadId') || defaultLeadId;
+  const urlLeadId = searchParams?.get('leadId') || '';
 
-  const [leadId, setLeadId] = useState<string>(initialLeadId);
+  const [leadId, setLeadId] = useState<string>(urlLeadId);
   const [data, setData] = useState<ClientDashboardData>(defaultInitialData);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,11 @@ export function ClientDashboardProvider({ children }: { children: React.ReactNod
       setIsLoading(true);
       setError(null);
 
-      const res = await fetch(`/api/client/dashboard?leadId=${encodeURIComponent(currentLeadId)}`, {
+      const endpoint = currentLeadId
+        ? `/api/client/dashboard?leadId=${encodeURIComponent(currentLeadId)}`
+        : `/api/client/dashboard`;
+
+      const res = await fetch(endpoint, {
         cache: 'no-store',
       });
 
@@ -74,11 +78,14 @@ export function ClientDashboardProvider({ children }: { children: React.ReactNod
       const json = await res.json();
       if (json.data) {
         setData(await mergeSavedProfile(json.data));
+        if (json.data.profile?.leadId && !currentLeadId) {
+          setLeadId(json.data.profile.leadId);
+        }
       }
     } catch (err: unknown) {
       console.warn('[ClientDashboardContext] Using local fallback:', (err as Error).message);
       setError((err as Error).message);
-      setData(await mergeSavedProfile(mapErpToDashboard({}, currentLeadId)));
+      setData(await mergeSavedProfile(mapErpToDashboard({}, currentLeadId || '1691')));
     } finally {
       setIsLoading(false);
     }

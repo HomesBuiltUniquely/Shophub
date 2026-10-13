@@ -11,6 +11,7 @@ export type SessionUser = {
   role: PortalRole;
   brand?: string;
   loginSource?: 'catalog' | 'internal';
+  leadId?: string;
 };
 
 export function encodeSession(user: SessionUser): string {
