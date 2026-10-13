@@ -149,10 +149,32 @@ export async function GET(request: NextRequest) {
       publishedParam == null ? true : publishedParam === 'true' || publishedParam === '1';
     const sort = searchParams.get('sort') || 'prodId,asc';
     const springProducts = await fetchAllSpringProducts({ isPublished, sort });
-    const catalogProducts =
+    const springCatalog =
       session.role === 'enterprise'
         ? await filterEnterpriseProducts(springProducts, session.id)
         : deduplicateProducts(springProducts);
+
+    let localCatalog: any[] = [];
+    try {
+      const publishedSql = isPublished ? ' AND CAST(is_published AS UNSIGNED) = 1' : '';
+      const [localRows]: any = await pool.query(
+        `SELECT * FROM product WHERE ${ownerWhere}${publishedSql} ORDER BY prod_id DESC`,
+        ownerParams
+      );
+      localCatalog = deduplicateProducts((Array.isArray(localRows) ? localRows : []).map(mapProductRow));
+    } catch (error: any) {
+      console.warn('[API /api/products GET] Local catalog skipped:', error?.message || error);
+    }
+    const merged = new Map<string, any>();
+    for (const product of springCatalog) {
+      const key = String(product.sku_id || product.sku || product.prodId || '').trim().toUpperCase();
+      if (key) merged.set(key, product);
+    }
+    for (const product of localCatalog) {
+      const key = String(product.sku_id || product.sku || product.prodId || '').trim().toUpperCase();
+      if (key && !merged.has(key)) merged.set(key, product);
+    }
+    const catalogProducts = Array.from(merged.values());
     if (catalogProducts.length > 0) {
       const totalElements = catalogProducts.length;
       const totalPages = Math.max(1, Math.ceil(totalElements / size));
@@ -167,7 +189,7 @@ export async function GET(request: NextRequest) {
         last: page >= totalPages - 1,
         numberOfElements: content.length,
         empty: content.length === 0,
-        source: 'spring',
+        source: springCatalog.length ? 'spring+local' : 'local',
       });
     }
 

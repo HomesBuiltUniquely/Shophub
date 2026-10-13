@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/account';
 import { excelRowToProduct, parseColumnMapping } from '@/lib/api/product-import-map';
 import { fetchGoogleSheetTable, parseSpreadsheetBuffer } from '@/lib/api/spreadsheet-source';
+import { createCatalogOffering } from '@/lib/api/catalog-write';
+import { SPRING_TOKEN_COOKIE } from '@/lib/api/spring';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +16,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const sheetUrl = String(form.get('sheetUrl') || '').trim();
   const file = form.get('file');
+  const springToken = request.cookies.get(SPRING_TOKEN_COOKIE)?.value;
 
   let mapping;
   try {
@@ -49,9 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'No rows found in the file.' }, { status: 400 });
   }
 
-  const origin = new URL(request.url).origin;
-  const cookie = request.headers.get('cookie') || '';
-  const created: { sku_id: string; offering_name: string }[] = [];
+  const created: { sku_id: string; offering_name: string; prodId?: number }[] = [];
   const failed: { row: number; sku_id?: string; error: string }[] = [];
 
   for (let i = 0; i < rows.length && i < 250; i++) {
@@ -61,24 +62,20 @@ export async function POST(request: NextRequest) {
       continue;
     }
     try {
-      const res = await fetch(`${origin}/api/offerings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          cookie,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.success === false) {
+      const result = await createCatalogOffering(payload, session, springToken);
+      if (!result.success) {
         failed.push({
           row: i + 2,
           sku_id: payload.sku_id,
-          error: data?.error || data?.message || `Request failed (${res.status})`,
+          error: result.error || 'Create failed',
         });
         continue;
       }
-      created.push({ sku_id: payload.sku_id, offering_name: payload.offering_name });
+      created.push({
+        sku_id: payload.sku_id,
+        offering_name: payload.offering_name,
+        prodId: result.prodId,
+      });
     } catch (err: any) {
       failed.push({ row: i + 2, sku_id: payload.sku_id, error: err.message || 'Create failed' });
     }
@@ -90,6 +87,6 @@ export async function POST(request: NextRequest) {
     failed: failed.length,
     items: created,
     errors: failed,
-    message: `Imported ${created.length} product${created.length === 1 ? '' : 's'} via createProduct.${failed.length ? ` ${failed.length} row(s) failed.` : ''}`,
+    message: `Imported ${created.length} product${created.length === 1 ? '' : 's'} via POST /api/v1/products/createProduct.${failed.length ? ` ${failed.length} row(s) failed.` : ''}`,
   });
 }

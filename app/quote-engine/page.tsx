@@ -10,7 +10,7 @@ import QuoteSidebar from '@/components/quote-engine/QuoteSidebar';
 import QuoteBottomBar from '@/components/quote-engine/QuoteBottomBar';
 import { getAllPrimaryCategories, getAllSecondaryCategories } from '@/lib/api/category.service';
 import { getAllProducts } from '@/lib/api/product.service';
-import { QuoteCustomer, QuoteProject } from '@/lib/api/leads.service';
+import { decodeUniqueCrmId, QuoteCustomer, QuoteProject } from '@/lib/api/leads.service';
 import { getRequirementScope, transformScopeToRooms } from '@/lib/api/requirement-scope.service';
 import { useAuthSession } from '@/lib/auth/useCurrentUser';
 import QuoteInvoiceSheet from '@/components/quote-engine/QuoteInvoiceSheet';
@@ -32,6 +32,8 @@ export interface Project {
   customerId?: number;
   status?: string;
   leadId?: string;
+  leadType?: string;
+  crmLeadId?: number;
 }
 
 export interface Room {
@@ -339,19 +341,11 @@ function QuoteEngineContent() {
     const loadRoomsFromScope = async () => {
       try {
         const currentProject = projects.find((p) => p.id === selectedProjectId);
-        let leadType = 'glead';
-        const projName = currentProject?.projectName || '';
-        if (projName.includes('ML-') || projName.toLowerCase().includes('meta')) {
-          leadType = 'mlead';
-        } else if (projName.includes('AL-') || projName.toLowerCase().includes('add lead')) {
-          leadType = 'addlead';
-        } else if (projName.includes('FL-') || projName.toLowerCase().includes('form')) {
-          leadType = 'formlead';
-        }
-
-        // Call the CRM requirement scope API
-        const scopeData = await getRequirementScope(selectedProjectId, leadType);
-        const transformedRooms = transformScopeToRooms(scopeData, selectedProjectId);
+        const decoded = decodeUniqueCrmId(selectedProjectId);
+        const leadType = currentProject?.leadType || decoded.leadType;
+        const crmLeadId = currentProject?.crmLeadId || decoded.crmLeadId;
+        const scopeData = await getRequirementScope(crmLeadId, leadType);
+        const transformedRooms = transformScopeToRooms(scopeData, crmLeadId);
 
         if (transformedRooms.length > 0) {
           setRooms(transformedRooms);
