@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QuoteInvoiceSheet from '@/components/quote-engine/QuoteInvoiceSheet';
-import { readSharedQuote, type SharedQuoteSnapshot } from '@/lib/quote/share-snapshot';
+import { readSharedQuote, saveSharedQuote, type SharedQuoteSnapshot } from '@/lib/quote/share-snapshot';
 
 function QuoteInvoiceContent() {
   const searchParams = useSearchParams();
@@ -11,12 +11,34 @@ function QuoteInvoiceContent() {
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    const loaded = readSharedQuote(searchParams.get('s'));
+    const id = searchParams.get('s');
+    const loaded = readSharedQuote(id);
     if (loaded?.quote) {
       setSnapshot(loaded);
-    } else {
-      setMissing(true);
+      return;
     }
+    if (!id) {
+      setMissing(true);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/quote/invoices/${encodeURIComponent(id)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.invoice?.quote) {
+          setSnapshot(data.invoice);
+          saveSharedQuote(data.invoice, id);
+        } else {
+          setMissing(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMissing(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   if (missing) {

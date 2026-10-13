@@ -159,39 +159,6 @@ function QuotationsContent() {
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    if (!pageData) return;
-
-    const quotes = pageData.recentQuotations;
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'QUOTE #,DATE ISSUED,REVISION,STATUS,TOTAL AMOUNT\n';
-
-    quotes.forEach((q) => {
-      csvContent += `"${q.quoteNumber}","${q.dateIssued}","${q.revision}","${q.status}","${q.totalAmountFormatted}"\n`;
-    });
-
-    if (pageData.activeQuote) {
-      csvContent += '\nACTIVE QUOTE ROOM BREAKDOWN\n';
-      csvContent += 'ROOM,ITEM NAME,PRICE\n';
-      pageData.activeQuote.rooms.forEach((r) => {
-        r.items.forEach((item) => {
-          csvContent += `"${r.roomName}","${item.name}","${item.priceFormatted}"\n`;
-        });
-      });
-    }
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `HubInterior_Quotations_${selectedQuoteNumber}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showToast('Quotations exported as CSV');
-  };
-
   const activeQuote = pageData?.activeQuote;
 
   return (
@@ -290,19 +257,6 @@ function QuotationsContent() {
                 </button>
               )}
 
-              {/* Export All (CSV) — only for interior */}
-              {quotationType === 'interior' && (
-                <button
-                  type="button"
-                  onClick={handleExportCSV}
-                  className="inline-flex items-center gap-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold py-2.5 px-4 rounded-full shadow-xs active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span>Export All (CSV)</span>
-                </button>
-              )}
             </div>
           </div>
 

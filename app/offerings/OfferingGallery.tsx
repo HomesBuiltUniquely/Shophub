@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { OfferingResponse } from '@/lib/types/offerings/offering.types';
+import { isInternalStaff } from '@/lib/auth/session';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 function getInitials(name = '') {
   const words = name.trim().split(/\s+/);
@@ -62,6 +64,7 @@ function openQuote(offering: OfferingResponse) {
 
 export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
   const router = useRouter();
+  const hideActions = isInternalStaff(useCurrentUser());
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -93,6 +96,7 @@ export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
                 <span className="text-sm font-extrabold text-gray-950">{formatPrice(price)}</span>
                 <span className="text-xs font-medium text-emerald-700">{stock} in stock</span>
               </div>
+              {!hideActions && (
               <div
                 className="flex gap-2 pt-2"
                 onClick={(e) => e.stopPropagation()}
@@ -113,6 +117,7 @@ export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
                   Update
                 </button>
               </div>
+              )}
             </div>
           </div>
         );
