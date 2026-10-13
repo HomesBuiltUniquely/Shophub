@@ -310,7 +310,17 @@ function mapCrmLeads(rawLeads: Lead[]): { customers: QuoteCustomer[]; projects: 
       id: numId,
       projectName: `Project #${l.id} (${identifier})`,
       customerId: numId,
-      status: l.status || (l as { stage?: string }).stage || 'Active',
+      status:
+        typeof l.status === 'string'
+          ? l.status
+          : typeof l.status === 'object' && l.status !== null
+          ? String(
+              (l.status as Record<string, unknown>).milestoneStage ||
+                (l.status as Record<string, unknown>).stage ||
+                (l.status as Record<string, unknown>).substage ||
+                'Active'
+            )
+          : (l as { stage?: string }).stage || 'Active',
       leadId: l.leadId || (l.lead_id as string),
     };
   });

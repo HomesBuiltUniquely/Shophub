@@ -75,6 +75,7 @@ export function isInternalAllowedPath(pathname: string) {
     pathname.startsWith('/quote-engine') ||
     pathname.startsWith('/quote-making') ||
     pathname.startsWith('/quote-invoice') ||
+    pathname.startsWith('/offering-invoice') ||
     pathname === '/' ||
     pathname === '/login'
   );
@@ -89,6 +90,7 @@ export function isEnterprisePath(pathname: string) {
     pathname.startsWith('/categories') ||
     pathname.startsWith('/quote-engine') ||
     pathname.startsWith('/quote-making') ||
+    pathname.startsWith('/offering-invoice') ||
     pathname.startsWith('/master-catalog') ||
     pathname.startsWith('/import') ||
     pathname.startsWith('/settings')

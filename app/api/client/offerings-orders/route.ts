@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
   }
   const { searchParams } = new URL(request.url);
+  const isClient = user.role === 'client';
+
   const orders = await listOfferingsOrders({
-    email: user.email,
+    email: isClient ? user.email : searchParams.get('email') || undefined,
     leadId: searchParams.get('leadId') || undefined,
     clientId: searchParams.get('clientId') || undefined,
+    search: searchParams.get('search') || undefined,
   });
   return NextResponse.json({ orders });
 }
