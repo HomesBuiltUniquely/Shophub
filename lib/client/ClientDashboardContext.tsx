@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClientDashboardData } from './types';
 import { mapErpToDashboard } from './erpMapper';
@@ -24,9 +24,13 @@ const defaultInitialData: ClientDashboardData = mapErpToDashboard({}, defaultLea
 
 const ClientDashboardContext = createContext<ClientDashboardContextValue | null>(null);
 
-export function ClientDashboardProvider({ children }: { children: React.ReactNode }) {
-  const searchParams = useSearchParams();
-  const urlLeadId = searchParams?.get('leadId') || '';
+function ClientDashboardProviderInner({
+  children,
+  urlLeadId,
+}: {
+  children: React.ReactNode;
+  urlLeadId: string;
+}) {
 
   const [leadId, setLeadId] = useState<string>(urlLeadId);
   const [data, setData] = useState<ClientDashboardData>(defaultInitialData);
@@ -127,6 +131,20 @@ export function ClientDashboardProvider({ children }: { children: React.ReactNod
     >
       {children}
     </ClientDashboardContext.Provider>
+  );
+}
+
+function ClientDashboardFromUrl({ children }: { children: React.ReactNode }) {
+  const searchParams = useSearchParams();
+  const urlLeadId = searchParams?.get('leadId') || '';
+  return <ClientDashboardProviderInner urlLeadId={urlLeadId}>{children}</ClientDashboardProviderInner>;
+}
+
+export function ClientDashboardProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<ClientDashboardProviderInner urlLeadId="">{children}</ClientDashboardProviderInner>}>
+      <ClientDashboardFromUrl>{children}</ClientDashboardFromUrl>
+    </Suspense>
   );
 }
 
