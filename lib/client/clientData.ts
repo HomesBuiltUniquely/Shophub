@@ -66,9 +66,9 @@ export const CLIENT_METRICS: ProjectMetric[] = [
 export const JOURNEY_STEPS: JourneyStep[] = [
   {
     id: 1,
-    name: 'BOOKING',
-    dateOrStatus: 'JULY 15',
-    status: 'completed',
+    name: 'KT TRANSFER',
+    dateOrStatus: 'PENDING',
+    status: 'pending',
     icon: 'booking',
   },
   {

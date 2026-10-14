@@ -85,7 +85,7 @@ export function ClientDashboardProvider({ children }: { children: React.ReactNod
     } catch (err: unknown) {
       console.warn('[ClientDashboardContext] Using local fallback:', (err as Error).message);
       setError((err as Error).message);
-      setData(await mergeSavedProfile(mapErpToDashboard({}, currentLeadId || '1691')));
+      setData(await mergeSavedProfile(mapErpToDashboard({}, currentLeadId || '')));
     } finally {
       setIsLoading(false);
     }

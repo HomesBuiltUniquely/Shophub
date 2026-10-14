@@ -1,5 +1,6 @@
 import {
   DESIGN_TRACKER_MILESTONES,
+  displayIndexFromApi,
   trackerCompletionPercent,
   trackerStatus,
   type DesignLead,
@@ -24,7 +25,7 @@ export function mapDesignLeadToProjectPage(
     quoteUrl?: string;
   }
 ): ProjectPageData {
-  const currentIndex = Math.max(0, Math.min(6, Number(lead.currentMilestoneIndex ?? 0)));
+  const currentIndex = displayIndexFromApi(lead.currentMilestoneIndex, lead.currentMilestoneName);
   const currentName = lead.currentMilestoneName || DESIGN_TRACKER_MILESTONES[currentIndex].name;
   const progress = trackerCompletionPercent(currentIndex, Number(lead.currentMilestoneProgress || 0));
 
@@ -75,25 +76,40 @@ export function mapDesignLeadToProjectPage(
     },
     timelineMilestones,
     teamContacts: [
-      {
-        id: 'team-1',
-        name: lead.designerName || 'Design Team',
-        role: 'LEAD DESIGNER',
-        email: lead.designerEmail,
-        phone: undefined,
-        avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-        actionType: 'email',
-      },
-      {
-        id: 'team-2',
-        name: lead.salesExecutive || lead.projectManagerName || 'Relationship Manager',
-        role: 'RELATIONSHIP MANAGER',
-        phone: undefined,
-        email: undefined,
-        avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-        actionType: 'call',
-      },
-    ],
+      lead.designerName
+        ? {
+            id: 'team-1',
+            name: lead.designerName,
+            role: String(lead.designerRoleLabel || 'INTERIOR DESIGNER').toUpperCase(),
+            email: lead.designerEmail,
+            phone: undefined,
+            avatarUrl: '',
+            actionType: 'email' as const,
+          }
+        : null,
+      lead.designManagerName
+        ? {
+            id: 'team-dm',
+            name: lead.designManagerName,
+            role: 'DESIGN MANAGER',
+            email: lead.designManagerEmail,
+            phone: undefined,
+            avatarUrl: '',
+            actionType: 'email' as const,
+          }
+        : null,
+      lead.salesExecutive
+        ? {
+            id: 'team-2',
+            name: lead.salesExecutive,
+            role: 'RELATIONSHIP MANAGER',
+            phone: undefined,
+            email: undefined,
+            avatarUrl: '',
+            actionType: 'call' as const,
+          }
+        : null,
+    ].filter(Boolean) as ProjectPageData['teamContacts'],
     latestRevision: {
       fileName: extras?.quoteLabel || (quoteId ? `Quote #${quoteId}` : 'Project files'),
       fileSize: lead.experienceSummary?.quoteAmount

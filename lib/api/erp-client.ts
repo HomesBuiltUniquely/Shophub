@@ -70,6 +70,9 @@ function mapDesignLeadToErp(dm: {
   clientEmail?: string;
   designerName?: string;
   designerEmail?: string;
+  designerRoleLabel?: string;
+  designManagerName?: string;
+  designManagerEmail?: string;
   projectManagerName?: string;
   salesExecutive?: string;
   intakeCustomerName?: string;
@@ -117,28 +120,53 @@ function mapDesignLeadToErp(dm: {
     floorPlanUrl: dm.floorPlanPublicLink,
     designerName: dm.designerName,
     designerEmail: dm.designerEmail,
+    designerRole: dm.designerRoleLabel || 'Interior Designer',
+    designManagerName: dm.designManagerName,
+    designManagerEmail: dm.designManagerEmail,
     assignee: dm.salesExecutive || dm.projectManagerName,
   };
 }
 
-export async function getLeadDetails(id: string | number, identity?: { email?: string; phone?: string }): Promise<any | null> {
+export async function getLeadDetails(
+  id: string | number,
+  identity?: { email?: string; phone?: string; name?: string }
+): Promise<any | null> {
   const str = String(id || '').trim();
 
   try {
-    const { resolveDesignLead } = await import('@/lib/api/design-module-client');
+    const { resolveDesignLead, resolveQuoteForLead, displayIndexFromApi } = await import(
+      '@/lib/api/design-module-client'
+    );
     const live = await resolveDesignLead({
       leadId: str || null,
       email: identity?.email,
       phone: identity?.phone,
+      name: identity?.name,
     });
     if (live?.id) {
-      return mapDesignLeadToErp(live);
+      const mapped = mapDesignLeadToErp(live);
+      const quote = await resolveQuoteForLead(live);
+      const displayIndex = displayIndexFromApi(live.currentMilestoneIndex, live.currentMilestoneName);
+      return {
+        ...mapped,
+        displayMilestoneIndex: displayIndex,
+        taskCompletions: live.taskCompletions || [],
+        prolanceQuoteId: quote.quoteId || mapped.prolanceQuoteId,
+        quoteId: quote.quoteId || mapped.quoteId,
+        quoteLink: quote.customerQuoteUrl || mapped.quoteLink,
+        quotePayload: quote.payload,
+        quoteVersions: quote.versions,
+        totalPayableAmount:
+          Number((quote.payload as { data?: { finalTotalPrice?: number; totalPrice?: number } })?.data?.finalTotalPrice) ||
+          Number((quote.payload as { data?: { totalPrice?: number } })?.data?.totalPrice) ||
+          mapped.totalPayableAmount,
+      };
     }
   } catch (err) {
     console.warn('[ERP Client] Live design lead lookup error:', err);
   }
 
-  if (!str) return null;
+  if (!str || /^\d{1,3}$/.test(str)) return null;
 
   try {
     const { getDesignModLead } = await import('@/lib/db/designmod');

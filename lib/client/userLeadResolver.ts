@@ -58,9 +58,10 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
     try {
       const { resolveDesignLead } = await import('@/lib/api/design-module-client');
       const live = await resolveDesignLead({
-        leadId,
+        leadId: leadId && String(leadId).replace(/\D/g, '').length >= 4 ? leadId : null,
         email,
         phone,
+        name: fullName,
       });
       if (live?.id) {
         dmLead = live;
@@ -239,22 +240,7 @@ export function buildClientInitialDashboard(client: ResolvedClientInfo): ClientD
         icon: 'referral',
       },
     ],
-    team: {
-      relationshipManager: {
-        role: 'Relationship Manager',
-        name: 'Sharanya',
-        phone: '+91 87550 09932',
-        email: 'chitarala@hubinterior.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      },
-      designer: {
-        role: 'Lead Designer',
-        name: 'Seher',
-        phone: '+91 97405 44327',
-        email: 'seher@hubinterior.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-      },
-    },
+    team: {},
     paymentSummary: {
       quoteNum: 'Q-INIT-001',
       quoteId: null,

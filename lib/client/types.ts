@@ -68,7 +68,7 @@ export interface ActionCardItem {
 }
 
 export interface AssignedTeamMember {
-  role: 'Relationship Manager' | 'Lead Designer' | 'Project Coordinator';
+  role: 'Relationship Manager' | 'Lead Designer' | 'Interior Designer' | 'Design Manager' | 'Project Coordinator';
   name: string;
   phone?: string;
   email?: string;
@@ -78,6 +78,7 @@ export interface AssignedTeamMember {
 export interface AssignedTeam {
   relationshipManager?: AssignedTeamMember;
   designer?: AssignedTeamMember;
+  designManager?: AssignedTeamMember;
 }
 
 export interface MilestonePaymentSummaryData {

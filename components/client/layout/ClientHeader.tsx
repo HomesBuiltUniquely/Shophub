@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useClientDashboard } from '@/lib/client/ClientDashboardContext';
-import { SearchIcon, BellWithBadgeIcon } from '../icons/ClientIcons';
+import { SearchIcon } from '../icons/ClientIcons';
 import SignOutButton from '@/components/auth/SignOutButton';
 
 interface ClientHeaderProps {
@@ -57,15 +57,6 @@ export default function ClientHeader({
           className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
         >
           Contact RM
-        </button>
-
-        {/* Notification Bell */}
-        <button
-          type="button"
-          className="p-1.5 text-gray-700 hover:text-gray-900 transition-colors rounded-full hover:bg-black/5"
-          aria-label="Notifications"
-        >
-          <BellWithBadgeIcon className="w-5 h-5" />
         </button>
 
         <SignOutButton className="text-sm font-medium text-gray-700 hover:text-gray-900" />

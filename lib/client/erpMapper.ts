@@ -81,11 +81,17 @@ function getAestheticClientMilestones(
   const sub = (subStageName || '').toLowerCase();
   const combined = `${s} ${sub}`;
 
+  if (combined.includes('pre 10')) {
+    return {
+      currentStage: 'KT TRANSFER',
+      stepIndex: 0,
+      completionPercentage: 8,
+      nextMilestone: 'D1 SITE MEASUREMENT',
+    };
+  }
+
   // Check if already paid 60% or more (Push to production phase)
-  if (
-    (totalPaidCumulative && totalPayableAmount && totalPaidCumulative >= totalPayableAmount * 0.58) ||
-    (totalPaidCumulative && totalPaidCumulative >= 300000)
-  ) {
+  if (totalPaidCumulative && totalPayableAmount && totalPaidCumulative >= totalPayableAmount * 0.58) {
     return {
       currentStage: 'PUSH TO PRODUCTION',
       stepIndex: 7,
@@ -284,12 +290,22 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
 
   // 3. Design Module 10% - 10% - 40% - 40% Milestone Payment Breakdown & Remaining Balance
   const dp = raw.designPayment;
-  const quoteNum = dp?.quoteNum || (lead.quoteNum ? String(lead.quoteNum) : (lead.prolanceQuoteId ? `Q-${lead.prolanceQuoteId}` : 'Q-PROJ-001'));
-  const quoteId = dp?.quoteId || (lead.quoteSentInfo?.quoteId ? Number(lead.quoteSentInfo.quoteId) : (lead.quoteId ? Number(lead.quoteId) : (lead.prolanceQuoteId ? Number(lead.prolanceQuoteId) : null)));
+  const quotePayloadData = (lead.quotePayload as { data?: Record<string, any> } | undefined)?.data;
+  const quoteNum =
+    quotePayloadData?.quoteNum ||
+    dp?.quoteNum ||
+    (lead.quoteNum ? String(lead.quoteNum) : lead.prolanceQuoteId ? `Q-${lead.prolanceQuoteId}` : 'Q-PROJ-001');
+  const quoteId =
+    Number(lead.quoteId) ||
+    Number(lead.prolanceQuoteId) ||
+    (quotePayloadData?.quoteID ? Number(quotePayloadData.quoteID) : null) ||
+    (dp?.quoteId ? Number(dp.quoteId) : null);
 
   // Total Quotation Value (latest)
   let totalQuoteValue = 0;
-  if (dp?.totalPayableAmount && Number(dp.totalPayableAmount) > 0) {
+  if (quotePayloadData?.finalTotalPrice || quotePayloadData?.totalPrice) {
+    totalQuoteValue = Number(quotePayloadData.finalTotalPrice || quotePayloadData.totalPrice) || 0;
+  } else if (dp?.totalPayableAmount && Number(dp.totalPayableAmount) > 0 && Number(dp.leadId || lead.id) === Number(lead.id)) {
     totalQuoteValue = Number(dp.totalPayableAmount);
   } else if (raw.hubQuote?.totalPayableAmount && Number(raw.hubQuote.totalPayableAmount) > 0) {
     totalQuoteValue = Number(raw.hubQuote.totalPayableAmount);
@@ -299,7 +315,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
 
   // Already Paid (sales + design modules)
   let alreadyPaid = 0;
-  if (dp?.totalPaidCumulative && Number(dp.totalPaidCumulative) > 0) {
+  if (dp?.totalPaidCumulative && Number(dp.totalPaidCumulative) > 0 && Number(dp.leadId || lead.id) === Number(lead.id)) {
     alreadyPaid = Number(dp.totalPaidCumulative);
   } else if (lead.totalPaidCumulative && Number(lead.totalPaidCumulative) > 0) {
     alreadyPaid = Number(lead.totalPaidCumulative);
@@ -319,22 +335,8 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
     lead.substage ||
     'In Progress';
 
-  const liveIndex =
-    typeof lead.currentMilestoneIndex === 'number' ? Number(lead.currentMilestoneIndex) : null;
-  const mapped = getAestheticClientMilestones(
-    rawStage,
-    rawSubStage,
-    alreadyPaid,
-    totalQuoteValue
-  );
-  const currentStage = (lead.currentMilestoneName as string) || mapped.currentStage;
-  const stepIndex =
-    liveIndex != null && Number.isFinite(liveIndex) ? Math.min(7, liveIndex + 1) : mapped.stepIndex;
-  const completionPercentage =
-    typeof lead.currentMilestoneProgress === 'number'
-      ? Math.round(((Math.max(0, liveIndex ?? mapped.stepIndex - 1) + Number(lead.currentMilestoneProgress) / 100) / 7) * 100)
-      : mapped.completionPercentage;
   const trackerNames = [
+    'KT TRANSFER',
     'D1 SITE MEASUREMENT',
     'DQC1',
     '10% PAYMENT',
@@ -343,11 +345,22 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
     '40% PAYMENT',
     'PUSH TO PRODUCTION',
   ];
-  const liveTrackerIndex = liveIndex != null ? Math.max(0, Math.min(6, liveIndex)) : null;
+  const mapped = getAestheticClientMilestones(rawStage, rawSubStage, alreadyPaid, totalQuoteValue);
+  const displayIndex =
+    typeof lead.displayMilestoneIndex === 'number'
+      ? Number(lead.displayMilestoneIndex)
+      : trackerNames.findIndex((n) => n === String(lead.currentMilestoneName || '').toUpperCase());
+  const currentStage =
+    (displayIndex >= 0 ? trackerNames[displayIndex] : null) ||
+    (lead.currentMilestoneName as string) ||
+    mapped.currentStage;
+  const stepIndex = displayIndex >= 0 ? displayIndex : mapped.stepIndex;
+  const completionPercentage =
+    displayIndex >= 0
+      ? Math.round(((displayIndex + Number(lead.currentMilestoneProgress || 0) / 100) / trackerNames.length) * 100)
+      : mapped.completionPercentage;
   const nextMilestone =
-    liveTrackerIndex != null
-      ? trackerNames[liveTrackerIndex + 1] || 'PRODUCTION IN PROGRESS'
-      : mapped.nextMilestone;
+    displayIndex >= 0 ? trackerNames[displayIndex + 1] || 'PRODUCTION IN PROGRESS' : mapped.nextMilestone;
 
   // Targets based on official milestones
   const twentyPercentTarget =
@@ -381,13 +394,12 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
       ? dp.remainingAfterSixtyPercent
       : Math.max(0, totalQuoteValue - sixtyPercentTarget);
 
-  let amountToCollectNow = amountToCollect10;
-  let remainingBalance = remainingAfterTwentyPercent;
-  let cumulativeTarget = twentyPercentTarget;
-  let cumulativePercentLabel = '20% Cumulative Target (Sales 10% + Design 10%)';
-  let paymentMilestoneLabel = '10% Design Advance';
-  let stageNote =
-    'Sales collected 10% at closure. Design module 10% payment brings the customer to 20% of the latest quotation. You can Edit the link amount lower (partial) or higher (extra advance).';
+  let amountToCollectNow = 0;
+  let remainingBalance = Math.max(0, totalQuoteValue - alreadyPaid);
+  let cumulativeTarget = totalQuoteValue;
+  let cumulativePercentLabel = 'Project quotation';
+  let paymentMilestoneLabel = 'Upcoming payment';
+  let stageNote = 'Milestone payments follow the design-module tracker for this project.';
 
   if (alreadyPaid >= sixtyPercentTarget - 100 || stepIndex >= 7) {
     amountToCollectNow = 0;
@@ -404,6 +416,14 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
     cumulativePercentLabel = '60% Cumulative Target (Sales 10% + Design 10% + Design 40%)';
     paymentMilestoneLabel = '40% Design Sign-off';
     stageNote = 'Design module 40% payment brings the customer to 60% cumulative of the latest quotation.';
+  } else if (stepIndex === 3) {
+    amountToCollectNow = amountToCollect10;
+    remainingBalance = remainingAfterTwentyPercent;
+    cumulativeTarget = twentyPercentTarget;
+    cumulativePercentLabel = '20% Cumulative Target (Sales 10% + Design 10%)';
+    paymentMilestoneLabel = '10% Design Advance';
+    stageNote =
+      'Design module 10% payment brings the customer to 20% of the latest quotation.';
   } else if (stepIndex > 6) {
     amountToCollectNow = remainingAfterSixtyPercent;
     remainingBalance = 0;
@@ -578,22 +598,33 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
     return card;
   });
 
-  // 8. Assigned Team
+  // 8. Assigned Team from Design Module (assigned designer + manager — never hardcoded Seher)
+  const designerName = lead.designerName || lead.designer_name;
+  const designerEmail = lead.designerEmail || lead.designer_email;
   const team: AssignedTeam = {
-    relationshipManager: {
-      role: 'Relationship Manager',
-      name: lead.assignee || 'Sharanya',
-      phone: lead.assigneePhone || '+91 87550 09932',
-      email: lead.assigneeEmail || 'chitarala@hubinterior.com',
-      avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    },
-    designer: {
-      role: 'Lead Designer',
-      name: lead.designerName || lead.designer_name || 'Seher',
-      phone: '+91 97405 44327',
-      email: 'seher@hubinterior.com',
-      avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    },
+    relationshipManager: lead.assignee
+      ? {
+          role: 'Relationship Manager',
+          name: lead.assignee,
+          phone: lead.assigneePhone || undefined,
+          email: lead.assigneeEmail || undefined,
+        }
+      : undefined,
+    designer: designerName
+      ? {
+          role: 'Interior Designer',
+          name: designerName,
+          phone: lead.designerPhone || undefined,
+          email: designerEmail || undefined,
+        }
+      : undefined,
+    designManager: lead.designManagerName
+      ? {
+          role: 'Design Manager',
+          name: lead.designManagerName,
+          email: lead.designManagerEmail || undefined,
+        }
+      : undefined,
   };
 
   return {
