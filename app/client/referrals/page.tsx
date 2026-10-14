@@ -55,7 +55,7 @@ function ReferralsContent() {
               Refer & Earn Rewards
             </h1>
             <p className="text-sm text-gray-500 mt-1 max-w-2xl">
-              Invite friends and neighbors to design with HUB. Earn ₹25,000 for every home that confirms a modular project.
+              Invite friends and neighbors to design with HUB. Every referral pays more than the last. Earn up to ₹1,00,000.
             </p>
           </div>
 
@@ -66,10 +66,10 @@ function ReferralsContent() {
                 EXCLUSIVE CLIENT BENEFIT
               </span>
               <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
-                Give ₹50,000 Off. <br />Get ₹25,000 In Cash or Project Credit.
+                Refer HUB. <br />Earn up to Rs 1 Lakh.
               </h2>
               <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                When your friend signs up with your exclusive referral code <strong>{referralCode}</strong>, they get up to ₹50,000 off their quotation. Once their project enters design sign-off, you receive ₹25,000 directly.
+                Every referral pays more than the last. Share your exclusive referral code <strong>{referralCode}</strong> with friends and family. Five referrals add up to ₹1,00,000.
               </p>
 
               {/* Referral Code Box */}
@@ -155,24 +155,57 @@ function ReferralsContent() {
                 <div className="w-8 h-8 rounded-full bg-black text-white font-black flex items-center justify-center text-xs">
                   1
                 </div>
-                <div className="font-extrabold text-gray-900 text-sm">Send Invite</div>
-                <p>Share your personalized link or code with your apartment community, colleagues, or family.</p>
+                <div className="font-extrabold text-gray-900 text-sm">Share Their Name & Number</div>
+                <p>Share your personalized link or code with your apartment community, colleagues, or family. Four easy ways to refer in under a minute.</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#FAF7F2] space-y-2">
                 <div className="w-8 h-8 rounded-full bg-black text-white font-black flex items-center justify-center text-xs">
                   2
                 </div>
-                <div className="font-extrabold text-gray-900 text-sm">Free Design Consultation</div>
-                <p>Your friend books a free showroom 3D consultation and unlocks their ₹50,000 project voucher.</p>
+                <div className="font-extrabold text-gray-900 text-sm">They Get Design Consultation</div>
+                <p>Your friend books a free showroom 3D consultation and starts their interior design journey with HUB.</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#FAF7F2] space-y-2">
                 <div className="w-8 h-8 rounded-full bg-black text-white font-black flex items-center justify-center text-xs">
                   3
                 </div>
-                <div className="font-extrabold text-gray-900 text-sm">₹25,000 Reward Sent</div>
-                <p>Once their design order is confirmed, ₹25,000 is transferred directly via NEFT/UPI or applied as credit.</p>
+                <div className="font-extrabold text-gray-900 text-sm">You Earn Increasing Rewards</div>
+                <p>Each referral pays more: 1st ₹10,000 • 2nd ₹15,000 • 3rd ₹20,000 • 4th ₹25,000 • 5th+ ₹30,000. No limit on how many you refer!</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Referral Visual Guide Section */}
+          <div className="mb-8 space-y-4 max-w-4xl mx-auto">
+            {/* Hero CTA Image */}
+            <div className="rounded-[20px] overflow-hidden shadow-lg border border-black/[0.05] hover:shadow-xl transition-shadow duration-300">
+              <img
+                src="/images/referrals/refer-hub-cta.jpg"
+                alt="Refer HUB and Earn up to Rs 1 Lakh"
+                className="w-full h-auto object-contain"
+              />
+            </div>
+
+            {/* Two Column Layout for Other Images */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Four Ways to Refer */}
+              <div className="rounded-[20px] overflow-hidden shadow-md border border-black/[0.05] hover:shadow-lg transition-shadow duration-300">
+                <img
+                  src="/images/referrals/four-ways-to-refer.jpg"
+                  alt="Four ways to refer - Quick and easy referral methods"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+
+              {/* Rewards Chart */}
+              <div className="rounded-[20px] overflow-hidden shadow-md border border-black/[0.05] hover:shadow-lg transition-shadow duration-300">
+                <img
+                  src="/images/referrals/referral-rewards-chart.jpg"
+                  alt="Every referral pays more than the last - Rewards breakdown"
+                  className="w-full h-auto object-contain"
+                />
               </div>
             </div>
           </div>
