@@ -61,64 +61,91 @@ async function erpFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
 /**
  * Fetch lead details from WebsiteLeadController or AddLeadController
  */
-export async function getLeadDetails(id: string | number): Promise<any | null> {
+function mapDesignLeadToErp(dm: {
+  id: number;
+  pid?: string;
+  projectName?: string;
+  projectStage?: string;
+  contactNo?: string;
+  clientEmail?: string;
+  designerName?: string;
+  designerEmail?: string;
+  projectManagerName?: string;
+  salesExecutive?: string;
+  intakeCustomerName?: string;
+  intakeConfiguration?: string;
+  intakePropertyLocation?: string;
+  intakePincode?: string;
+  intakeBookingType?: string;
+  prolanceQuoteId?: number | null;
+  floorPlanPublicLink?: string;
+  currentMilestoneIndex?: number;
+  currentMilestoneName?: string;
+  currentMilestoneProgress?: number;
+  experienceSummary?: { quoteId?: string | number; quoteLink?: string | null; quoteAmount?: number };
+  decisionSummary?: { finalBudget?: number };
+}) {
+  const quoteId = dm.prolanceQuoteId || dm.experienceSummary?.quoteId || null;
+  const milestoneName = dm.currentMilestoneName || dm.projectStage || 'D1 SITE MEASUREMENT';
+  const quoteAmount = Number(dm.experienceSummary?.quoteAmount || dm.decisionSummary?.finalBudget || 0);
+  return {
+    id: dm.id,
+    name: dm.intakeCustomerName || dm.projectName || 'Client',
+    customerId: `BLR-${dm.pid || 'A' + dm.id}`,
+    leadId: String(dm.id),
+    leadIdentifier: dm.pid,
+    phone: dm.contactNo,
+    email: dm.clientEmail,
+    propertyType: `${dm.intakeConfiguration || '3 BHK'} ${dm.intakeBookingType || 'Apartment'}`,
+    propertyLocation: dm.intakePropertyLocation || 'Bangalore',
+    propertyPin: dm.intakePincode || '560001',
+    project_stage: dm.projectStage,
+    projectStage: dm.projectStage,
+    currentMilestoneIndex: dm.currentMilestoneIndex ?? 0,
+    currentMilestoneName: milestoneName,
+    currentMilestoneProgress: dm.currentMilestoneProgress ?? 0,
+    stage: {
+      milestoneStage: milestoneName,
+      stage: milestoneName,
+      milestoneSubStage: 'In Progress',
+    },
+    prolanceQuoteId: quoteId,
+    quoteId,
+    quoteNum: quoteId ? `Q-${quoteId}` : undefined,
+    quoteLink: dm.experienceSummary?.quoteLink || (quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : undefined),
+    totalPayableAmount: quoteAmount,
+    floorPlanUrl: dm.floorPlanPublicLink,
+    designerName: dm.designerName,
+    designerEmail: dm.designerEmail,
+    assignee: dm.salesExecutive || dm.projectManagerName,
+  };
+}
+
+export async function getLeadDetails(id: string | number, identity?: { email?: string; phone?: string }): Promise<any | null> {
   const str = String(id || '').trim();
 
-  // 1. If lead is 99903 or Client S or PID QK-KJT5T5P7EF, fetch directly from DesignModule!
-  if (
-    str === '99903' ||
-    str.includes('99903') ||
-    str.includes('KJT5T5P7EF') ||
-    str.includes('go@hubinterior.com') ||
-    str.toLowerCase() === 'client'
-  ) {
-    try {
-      const { getDesignModLead } = await import('@/lib/db/designmod');
-      const dm = await getDesignModLead('99903');
-      if (dm && dm.id) {
-        return {
-          id: dm.id,
-          name: dm.projectName || 'Client',
-          customerId: `BLR-${dm.pid || 'A' + dm.id}`,
-          leadId: String(dm.id),
-          leadIdentifier: dm.pid,
-          phone: dm.contactNo,
-          email: dm.clientEmail,
-          propertyType: `${dm.configuration || '3 BHK'} Apartment`,
-          propertyLocation: dm.propertyLocation || 'Purva Palm Beach, Bangalore',
-          propertyPin: '560001',
-          project_stage: dm.projectStage || '10-20%',
-          stage: {
-            milestoneStage: '10% PAYMENT',
-            stage: '10% PAYMENT',
-            milestoneSubStage: 'In Progress',
-          },
-          prolanceQuoteId: dm.quoteId || '75774',
-          quoteLink: `https://design.hubinterior.com/quote/${dm.quoteId || '75774'}`,
-          totalPayableAmount: dm.totalPayableAmount,
-          totalPaidCumulative: dm.totalPaidCumulative,
-          floorPlanUrl: dm.floorPlanUrl,
-          designerName: dm.designerName || 'Seher',
-          designerPhone: '+91 97405 44327',
-          designerEmail: 'seher@hubinterior.com',
-          assignee: dm.assignee || 'Sharanya',
-          assigneePhone: '+91 87550 09932',
-          assigneeEmail: 'chitarala@hubinterior.com',
-          bookingDate: 'Oct 12, 2026',
-        };
-      }
-    } catch (err) {
-      console.warn('[ERP Client] DesignMod lead lookup error:', err);
+  try {
+    const { resolveDesignLead } = await import('@/lib/api/design-module-client');
+    const live = await resolveDesignLead({
+      leadId: str || null,
+      email: identity?.email,
+      phone: identity?.phone,
+    });
+    if (live?.id) {
+      return mapDesignLeadToErp(live);
     }
+  } catch (err) {
+    console.warn('[ERP Client] Live design lead lookup error:', err);
   }
 
   if (!str) return null;
 
-  // Check DesignMod database (e.g. Lead 99903 / Client)
   try {
     const { getDesignModLead } = await import('@/lib/db/designmod');
     const dm = await getDesignModLead(str);
     if (dm && dm.id) {
+      const quoteId = dm.quoteId;
+      const stageName = dm.projectStage || 'Pre 10%';
       return {
         id: dm.id,
         name: dm.projectName || 'Client',
@@ -128,26 +155,23 @@ export async function getLeadDetails(id: string | number): Promise<any | null> {
         phone: dm.contactNo,
         email: dm.clientEmail,
         propertyType: `${dm.configuration || '3 BHK'} Apartment`,
-        propertyLocation: dm.propertyLocation || 'Purva Palm Beach, Bangalore',
+        propertyLocation: dm.propertyLocation || 'Bangalore',
         propertyPin: '560001',
-        project_stage: dm.projectStage || '10-20%',
+        project_stage: stageName,
+        projectStage: stageName,
+        currentMilestoneName: stageName,
         stage: {
-          milestoneStage: '10% PAYMENT',
-          stage: '10% PAYMENT',
+          milestoneStage: stageName,
+          stage: stageName,
           milestoneSubStage: 'In Progress',
         },
-        prolanceQuoteId: dm.quoteId || '75774',
-        quoteLink: `https://design.hubinterior.com/quote/${dm.quoteId || '75774'}`,
+        prolanceQuoteId: quoteId,
+        quoteLink: quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : undefined,
         totalPayableAmount: dm.totalPayableAmount,
         totalPaidCumulative: dm.totalPaidCumulative,
         floorPlanUrl: dm.floorPlanUrl,
-        designerName: dm.designerName || 'Seher',
-        designerPhone: '+91 97405 44327',
-        designerEmail: 'seher@hubinterior.com',
-        assignee: dm.assignee || 'Sharanya',
-        assigneePhone: '+91 87550 09932',
-        assigneeEmail: 'chitarala@hubinterior.com',
-        bookingDate: 'Oct 12, 2026',
+        designerName: dm.designerName,
+        assignee: dm.assignee,
       };
     }
   } catch (err) {

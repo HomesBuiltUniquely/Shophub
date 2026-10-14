@@ -55,30 +55,34 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
         : session.leadId || null;
 
     let dmLead: any = null;
-    if (!leadId) {
+    try {
+      const { resolveDesignLead } = await import('@/lib/api/design-module-client');
+      const live = await resolveDesignLead({
+        leadId,
+        email,
+        phone,
+      });
+      if (live?.id) {
+        dmLead = live;
+        leadId = String(live.id);
+        if (userRow?.uuid && String(userRow.lead_id || '') !== leadId) {
+          await pool.query('UPDATE user SET lead_id = ? WHERE uuid = ?', [leadId, userRow.uuid]);
+        }
+      }
+    } catch (err) {
+      console.warn('[userLeadResolver] Live design lead error:', err);
+    }
+    if (!dmLead) {
       try {
         const { getDesignModLead } = await import('@/lib/db/designmod');
-        if (email) {
-          dmLead = await getDesignModLead(email);
-        }
-        if (!dmLead && phone) {
-          dmLead = await getDesignModLead(phone);
-        }
+        if (email) dmLead = await getDesignModLead(email);
+        if (!dmLead && phone) dmLead = await getDesignModLead(phone);
+        if (!dmLead && leadId) dmLead = await getDesignModLead(leadId);
         if (dmLead) {
           leadId = String(dmLead.id);
-          if (userRow?.uuid) {
-            await pool.query('UPDATE user SET lead_id = ? WHERE uuid = ?', [leadId, userRow.uuid]);
-          }
         }
       } catch (err) {
         console.warn('[userLeadResolver] Auto-link error:', err);
-      }
-    } else {
-      try {
-        const { getDesignModLead } = await import('@/lib/db/designmod');
-        dmLead = await getDesignModLead(leadId);
-      } catch (err) {
-        console.warn('[userLeadResolver] Fetch lead error:', err);
       }
     }
 
@@ -90,13 +94,14 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
         : `BLR-A${String(leadId).replace(/\D/g, '').padStart(4, '0')}`
       : `BLR-C${String(userRow?.uuid || session.id).padStart(4, '0')}`;
 
-    const propertyType = dmLead?.configuration
-      ? `${dmLead.configuration} Apartment`
+    const configuration = dmLead?.configuration || dmLead?.intakeConfiguration;
+    const propertyType = configuration
+      ? `${configuration} ${dmLead?.intakeBookingType || 'Apartment'}`
       : address.toLowerCase().includes('bhk')
       ? address
       : '3 BHK Apartment';
 
-    const locationName = dmLead?.propertyLocation || city;
+    const locationName = dmLead?.propertyLocation || dmLead?.intakePropertyLocation || city;
     const propertyDetails = `${locationName} • ${pincode}`;
 
     return {

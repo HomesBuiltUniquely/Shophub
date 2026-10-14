@@ -307,24 +307,47 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
 
   // 2. Stage calculation based on CRM stage and payments
   const rawStage =
-    lead.project_stage ||
-    lead.projectStage ||
+    lead.currentMilestoneName ||
     lead.stage?.milestoneStage ||
     lead.stage?.stage ||
-    (String(lead.id) === '99903' ? '10% PAYMENT' : '');
+    lead.project_stage ||
+    lead.projectStage ||
+    '';
 
   const rawSubStage =
     lead.stage?.milestoneSubStage ||
     lead.substage ||
     'In Progress';
 
-  const { currentStage, stepIndex, completionPercentage, nextMilestone } =
-    getAestheticClientMilestones(
-      rawStage,
-      rawSubStage,
-      alreadyPaid,
-      totalQuoteValue
-    );
+  const liveIndex =
+    typeof lead.currentMilestoneIndex === 'number' ? Number(lead.currentMilestoneIndex) : null;
+  const mapped = getAestheticClientMilestones(
+    rawStage,
+    rawSubStage,
+    alreadyPaid,
+    totalQuoteValue
+  );
+  const currentStage = (lead.currentMilestoneName as string) || mapped.currentStage;
+  const stepIndex =
+    liveIndex != null && Number.isFinite(liveIndex) ? Math.min(7, liveIndex + 1) : mapped.stepIndex;
+  const completionPercentage =
+    typeof lead.currentMilestoneProgress === 'number'
+      ? Math.round(((Math.max(0, liveIndex ?? mapped.stepIndex - 1) + Number(lead.currentMilestoneProgress) / 100) / 7) * 100)
+      : mapped.completionPercentage;
+  const trackerNames = [
+    'D1 SITE MEASUREMENT',
+    'DQC1',
+    '10% PAYMENT',
+    'D2 SITE MASKING',
+    'DQC2',
+    '40% PAYMENT',
+    'PUSH TO PRODUCTION',
+  ];
+  const liveTrackerIndex = liveIndex != null ? Math.max(0, Math.min(6, liveIndex)) : null;
+  const nextMilestone =
+    liveTrackerIndex != null
+      ? trackerNames[liveTrackerIndex + 1] || 'PRODUCTION IN PROGRESS'
+      : mapped.nextMilestone;
 
   // Targets based on official milestones
   const twentyPercentTarget =
