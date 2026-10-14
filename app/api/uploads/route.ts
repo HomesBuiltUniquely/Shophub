@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Use PNG, JPG, SVG, or ICO.' }, { status: 400 });
     }
 
-    const folderRaw = String(form.get('folder') || 'categories').toLowerCase();
-    const folder = folderRaw === 'profile' ? 'profile' : 'categories';
+    const folderRaw = String(form.get('folder') || 'offerings').toLowerCase();
+    const folder = ['profile', 'offerings', 'categories'].includes(folderRaw) ? folderRaw : 'offerings';
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
     const uploaded = await uploadImageToS3({
       body: Buffer.from(await file.arrayBuffer()),

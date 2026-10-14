@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
+import { offeringImageUrl } from '@/lib/media/offering-image';
 
 function getInitials(name = '') {
   const words = name.trim().split(/\s+/);
@@ -25,10 +26,11 @@ function OfferingThumb({
   className: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const imageUrl =
-    offering.product?.image_url && !offering.product.image_url.includes('example.com')
-      ? offering.product.image_url
-      : undefined;
+  const imageUrl = offeringImageUrl(
+    offering.product?.image_url,
+    offering.media?.primary_image,
+    offering.image
+  );
 
   return (
     <div className={`${className} bg-gray-900 text-white font-bold flex items-center justify-center overflow-hidden relative`}>

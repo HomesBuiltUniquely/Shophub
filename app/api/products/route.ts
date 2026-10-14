@@ -35,6 +35,8 @@ function mapProductRow(row: any) {
 
   return {
     prodId: row.prodId ?? row.prod_id ?? row.id ?? row.sku_id,
+    image_url: row.primary_image || row.image_url || '',
+    primary_image: row.primary_image || row.image_url || '',
     offering_name: row.offering_name || row.product_name || 'Unnamed Offering',
     offering_type: row.offering_type || 'PRODUCT',
     sku_id: row.sku_id || row.sku || '',
