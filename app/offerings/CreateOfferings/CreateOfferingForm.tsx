@@ -422,7 +422,10 @@ export default function CreateOfferingForm() {
     try {
       const full = buildPayload(publish);
       const slotTabs = ['PRICING', 'INVENTORY', 'MEDIA', 'SEO', 'SPECIFICATIONS', 'INTERNAL'] as const;
-      const updateSlot = Boolean(prodId && slotTabs.includes(tab as (typeof slotTabs)[number]) && !(publish && !isPublished));
+      const updateSlot =
+        prodId != null &&
+        slotTabs.includes(tab as (typeof slotTabs)[number]) &&
+        !(publish && !isPublished);
 
       if (updateSlot) {
         const slug = full.seo.url_slug || slugify(form.offering_name);

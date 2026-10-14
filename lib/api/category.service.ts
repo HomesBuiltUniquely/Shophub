@@ -122,24 +122,27 @@ function groupProductsByCategory(products: Product[]) {
   return groups;
 }
 
-async function getCategoriesFromLocalProducts(kind: 'primary' | 'secondary') {
+async function getCategoriesFromLocalProducts(kind: 'primary'): Promise<PrimaryCategory[]>;
+async function getCategoriesFromLocalProducts(kind: 'secondary'): Promise<SecondaryCategory[]>;
+async function getCategoriesFromLocalProducts(
+  kind: 'primary' | 'secondary'
+): Promise<PrimaryCategory[] | SecondaryCategory[]> {
   const products = await getLocalProducts();
   if (products.length === 0) return [];
   const groups = groupProductsByCategory(products);
-  return [...groups.entries()].map(([name, grouped], index) => {
-    if (kind === 'primary') {
-      return {
-        primaryCategoryId: index + 1,
-        primaryCategoryName: name,
-        products: grouped,
-      } as PrimaryCategory;
-    }
-    return {
-      secondaryCategoryId: index + 1,
-      secondaryCategoryName: name,
+  const entries = [...groups.entries()];
+  if (kind === 'primary') {
+    return entries.map(([name, grouped], index) => ({
+      primaryCategoryId: index + 1,
+      primaryCategoryName: name,
       products: grouped,
-    } as SecondaryCategory;
-  });
+    }));
+  }
+  return entries.map(([name, grouped], index) => ({
+    secondaryCategoryId: index + 1,
+    secondaryCategoryName: name,
+    products: grouped,
+  }));
 }
 
 /**
