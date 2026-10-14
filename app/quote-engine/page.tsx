@@ -839,10 +839,10 @@ function QuoteEngineContent() {
           customerEmail: customer.email,
           customerPhone: customer.phone,
           clientId: customer.customerId || project?.leadId,
-          leadId:
-            project?.leadId ||
-            (project?.crmLeadId ? String(project.crmLeadId) : undefined) ||
-            (customer.crmLeadId ? String(customer.crmLeadId) : undefined),
+          leadId: String(customer.id || project?.leadId || ''),
+          pid: project?.leadId || customer.customerId,
+          numericLeadId: customer.id,
+          projectName: project?.projectName,
           items: quote.items,
         }),
       });

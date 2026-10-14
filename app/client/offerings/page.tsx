@@ -52,17 +52,20 @@ function OfferingCard({ offering }: { offering: SavedOfferingRow }) {
 }
 
 function ClientOfferingsContent() {
-  const { data } = useClientDashboard();
+  const { data, isLoading: dashLoading } = useClientDashboard();
   const [items, setItems] = useState<SavedOfferingRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    if (dashLoading) return;
     let cancelled = false;
     setIsLoading(true);
     const params = new URLSearchParams();
     if (data.profile?.leadId) params.set('leadId', String(data.profile.leadId));
     if (data.profile?.clientId) params.set('clientId', String(data.profile.clientId));
+    if (data.profile?.email) params.set('email', data.profile.email);
+    if (data.profile?.phone) params.set('phone', data.profile.phone);
     fetch(`/api/client/saved-offerings?${params.toString()}`, { credentials: 'include', cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
@@ -77,7 +80,7 @@ function ClientOfferingsContent() {
     return () => {
       cancelled = true;
     };
-  }, [data.profile?.leadId, data.profile?.clientId]);
+  }, [dashLoading, data.profile?.leadId, data.profile?.clientId, data.profile?.email, data.profile?.phone]);
 
   const offerings = useMemo(() => {
     const q = search.trim().toLowerCase();

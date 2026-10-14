@@ -9,6 +9,7 @@ import { useAuthSession } from '@/lib/auth/useCurrentUser';
 import { QuoteCustomer, QuoteProject } from '@/lib/api/leads.service';
 import type { OfferingsSubmittedOrder } from '@/lib/client/offerings-order';
 import type { OfferingDraftItem } from '@/lib/client/offeringsDraftStore';
+import { identitiesOverlap } from '@/lib/client/offering-identity';
 
 const fmt = (n?: number) =>
   Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -72,9 +73,14 @@ function OfferingInvoiceContent() {
 
       if (selectedCustomerId !== 'ALL') {
         const cust = customers.find((c) => c.id === selectedCustomerId);
+        const project = projects.find((p) => p.customerId === selectedCustomerId || p.id === selectedCustomerId);
         if (cust) {
+          if (cust.email) params.set('email', cust.email);
+          if (cust.phone) params.set('phone', cust.phone);
           if (cust.customerId) params.set('clientId', cust.customerId);
           params.set('leadId', String(cust.id));
+          if (project?.leadId) params.set('pid', String(project.leadId));
+          if (cust.crmLeadId) params.set('crmLeadId', String(cust.crmLeadId));
         }
       }
 
@@ -91,7 +97,7 @@ function OfferingInvoiceContent() {
     } finally {
       setIsLoadingOrders(false);
     }
-  }, [selectedCustomerId, customers]);
+  }, [selectedCustomerId, customers, projects]);
 
   useEffect(() => {
     fetchOrders();
@@ -125,13 +131,24 @@ function OfferingInvoiceContent() {
 
     // Filter by client if a specific client is selected
     if (selectedCustomerId !== 'ALL' && currentCustomer) {
-      const targetCode = String(currentCustomer.customerId || '').replace(/^BLR-?/i, '').toLowerCase();
-      const targetId = String(currentCustomer.id);
-      result = result.filter((o) => {
-        const oCode = String(o.clientId || '').replace(/^BLR-?/i, '').toLowerCase();
-        const oLead = String(o.leadId || '');
-        return (targetCode && oCode === targetCode) || (targetId && oLead === targetId);
-      });
+      result = result.filter((o) =>
+        identitiesOverlap(
+          {
+            email: currentCustomer.email,
+            phone: currentCustomer.phone,
+            leadId: String(currentCustomer.id),
+            clientId: currentCustomer.customerId,
+            extra: [currentProject?.leadId, currentCustomer.crmLeadId],
+          },
+          {
+            email: o.customerEmail,
+            phone: o.customerPhone,
+            leadId: o.leadId,
+            clientId: o.clientId,
+            extra: [o.quoteNumber, o.customerName],
+          }
+        )
+      );
     }
 
     // Filter by search text
@@ -149,7 +166,7 @@ function OfferingInvoiceContent() {
     }
 
     return result;
-  }, [orders, selectedCustomerId, currentCustomer, searchFilter]);
+  }, [orders, selectedCustomerId, currentCustomer, currentProject, searchFilter]);
 
   // Compute overall summary stats
   const totalValue = useMemo(() => {
@@ -392,13 +409,14 @@ function OfferingInvoiceContent() {
                         <div>
                           <div className="text-[10px] font-black uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                            SENT TO DESIGNER
+                            {order.source === 'staff' ? 'SAVED FOR CLIENT' : 'SENT TO DESIGNER'}
                           </div>
                           <div className="text-base font-extrabold text-gray-950 mt-0.5">
                             {order.quoteNumber || 'INV-OFF'} · ₹ {fmt(order.grandTotal ?? subTotal)}
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">
-                            {totalItems} item{totalItems !== 1 ? 's' : ''} chosen by client — submitted for review.
+                            {totalItems} item{totalItems !== 1 ? 's' : ''}{' '}
+                            {order.source === 'staff' ? 'saved by designer for this client.' : 'chosen by client — submitted for review.'}
                           </div>
                         </div>
 

@@ -3,8 +3,26 @@ import { getSessionFromRequest } from '@/lib/auth/account';
 import { isInternalStaff } from '@/lib/auth/session';
 import { listSavedOfferingsForClient, replaceSavedOfferingsForClient } from '@/lib/client/saved-offerings';
 import { resolveClientUser } from '@/lib/client/userLeadResolver';
+import { draftItemsFromQuoteLines } from '@/lib/client/offerings-order';
+import { persistOfferingOrder } from '@/lib/client/persist-offering-order';
+import { listOfferingsOrders } from '@/lib/client/offerings-order-archive';
+import type { SavedOfferingRow } from '@/lib/client/saved-offerings';
 
 export const dynamic = 'force-dynamic';
+
+function identityFromRequest(
+  searchParams: URLSearchParams,
+  clientUser: Awaited<ReturnType<typeof resolveClientUser>>,
+  user: { email?: string; leadId?: string; role?: string }
+) {
+  return {
+    email: user.role === 'client' ? clientUser?.email || user.email : searchParams.get('email'),
+    phone: clientUser?.phone || searchParams.get('phone'),
+    leadId: clientUser?.leadId || searchParams.get('leadId') || user.leadId,
+    clientId: clientUser?.clientId || searchParams.get('clientId'),
+    extra: [searchParams.get('pid'), clientUser?.clientId, clientUser?.leadId],
+  };
+}
 
 export async function GET(request: NextRequest) {
   const user = getSessionFromRequest(request);
@@ -14,14 +32,39 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const clientUser = user.role === 'client' ? await resolveClientUser(request) : null;
+  const identity = identityFromRequest(searchParams, clientUser, user);
 
   try {
-    const items = await listSavedOfferingsForClient({
-      email: user.role === 'client' ? clientUser?.email || user.email : searchParams.get('email'),
-      phone: clientUser?.phone || searchParams.get('phone'),
-      leadId: clientUser?.leadId || searchParams.get('leadId') || user.leadId,
-      clientId: clientUser?.clientId || searchParams.get('clientId'),
-    });
+    const saved = await listSavedOfferingsForClient(identity);
+    const orders = await listOfferingsOrders(identity);
+    const items: SavedOfferingRow[] = [...saved];
+    const seen = new Set(saved.map((row) => row.prodId));
+    for (const order of orders) {
+      for (const line of order.items || []) {
+        const prodId = String(line.offeringId || line.sku || '');
+        if (!prodId || seen.has(prodId)) continue;
+        seen.add(prodId);
+        items.push({
+          id: items.length + 1,
+          assignmentId: order.id,
+          customerEmail: order.customerEmail || '',
+          customerPhone: order.customerPhone || '',
+          leadId: order.leadId || '',
+          clientId: order.clientId || '',
+          customerName: order.customerName || '',
+          prodId,
+          offeringName: line.offeringName,
+          skuId: line.sku,
+          category: line.room,
+          unitPrice: line.unitPrice,
+          quantity: line.quantity,
+          imageUrl: line.imageUrl,
+          room: line.room,
+          savedBy: order.source || 'staff',
+          createdAt: order.createdAt,
+        });
+      }
+    }
     return NextResponse.json({ items });
   } catch (err) {
     console.error('[saved-offerings GET]', err);
@@ -47,6 +90,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const mapped = items.map((item: Record<string, unknown>) => ({
+    prodId: String(item.prodId || item.id || ''),
+    offeringName: String(item.offeringName || item.offering_name || 'Offering'),
+    skuId: item.skuId ? String(item.skuId) : undefined,
+    category: item.category ? String(item.category) : undefined,
+    unitPrice: Number(item.unitPrice || 0),
+    quantity: Number(item.quantity || 1),
+    imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
+    room: item.room ? String(item.room) : undefined,
+  }));
+
   try {
     const saved = await replaceSavedOfferingsForClient({
       customerEmail: body.customerEmail,
@@ -55,18 +109,25 @@ export async function POST(request: NextRequest) {
       clientId: body.clientId,
       customerName: body.customerName,
       savedBy: user.email || user.name,
-      items: items.map((item: Record<string, unknown>) => ({
-        prodId: String(item.prodId || item.id || ''),
-        offeringName: String(item.offeringName || item.offering_name || 'Offering'),
-        skuId: item.skuId ? String(item.skuId) : undefined,
-        category: item.category ? String(item.category) : undefined,
-        unitPrice: Number(item.unitPrice || 0),
-        quantity: Number(item.quantity || 1),
-        imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
-        room: item.room ? String(item.room) : undefined,
-      })),
+      extra: [body.numericLeadId, body.pid, body.customerId],
+      items: mapped,
     });
-    return NextResponse.json({ success: true, ...saved });
+
+    const order = await persistOfferingOrder({
+      items: draftItemsFromQuoteLines(items),
+      customerName: body.customerName,
+      customerEmail: body.customerEmail,
+      customerPhone: body.customerPhone,
+      leadId: body.leadId ? String(body.leadId) : undefined,
+      clientId: body.clientId,
+      ownerEmail: user.email,
+      issuedBy: user.name,
+      projectName: body.projectName,
+      source: 'staff',
+      extra: [body.numericLeadId, body.pid, body.customerId],
+    });
+
+    return NextResponse.json({ success: true, ...saved, orderId: order.id, invoiceId: order.invoiceId });
   } catch (err) {
     console.error('[saved-offerings POST]', err);
     return NextResponse.json({ error: 'Could not save offerings for this client.' }, { status: 500 });

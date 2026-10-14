@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/account';
-import { createOfferingsInvoice } from '@/lib/quote/invoice-archive';
-import { quoteModelFromDraftItems, type OfferingsSubmittedOrder } from '@/lib/client/offerings-order';
-import { createOfferingsOrder, listOfferingsOrders } from '@/lib/client/offerings-order-archive';
+import { persistOfferingOrder } from '@/lib/client/persist-offering-order';
+import { listOfferingsOrders } from '@/lib/client/offerings-order-archive';
+import { replaceSavedOfferingsForClient } from '@/lib/client/saved-offerings';
+import { resolveClientUser } from '@/lib/client/userLeadResolver';
 import type { OfferingDraftItem } from '@/lib/client/offeringsDraftStore';
 
 export const dynamic = 'force-dynamic';
@@ -14,14 +15,26 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   const isClient = user.role === 'client';
+  const clientUser = isClient ? await resolveClientUser(request) : null;
 
   try {
-    const orders = await listOfferingsOrders({
-      email: isClient ? user.email : searchParams.get('email') || undefined,
-      leadId: searchParams.get('leadId') || undefined,
-      clientId: searchParams.get('clientId') || undefined,
-      search: searchParams.get('search') || undefined,
-    });
+    const orders = await listOfferingsOrders(
+      isClient
+        ? {
+            email: clientUser?.email || user.email,
+            phone: clientUser?.phone,
+            leadId: clientUser?.leadId || searchParams.get('leadId') || user.leadId,
+            clientId: clientUser?.clientId || searchParams.get('clientId'),
+          }
+        : {
+            email: searchParams.get('email'),
+            phone: searchParams.get('phone'),
+            leadId: searchParams.get('leadId'),
+            clientId: searchParams.get('clientId'),
+            extra: [searchParams.get('pid'), searchParams.get('crmLeadId')],
+            search: searchParams.get('search') || undefined,
+          }
+    );
     return NextResponse.json({ orders });
   } catch (err) {
     console.error('[offerings-orders GET]', err);
@@ -41,41 +54,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Select at least one offering.' }, { status: 400 });
   }
 
-  const customerName = body.customerName || user.name;
-  const customerEmail = body.customerEmail || user.email;
-  const leadId = body.leadId ? String(body.leadId) : undefined;
-  const clientId = body.clientId ? String(body.clientId) : undefined;
-  const quote = quoteModelFromDraftItems(items, customerName);
+  const clientUser = user.role === 'client' ? await resolveClientUser(request) : null;
+  const customerName = body.customerName || clientUser?.fullName || user.name;
+  const customerEmail = body.customerEmail || clientUser?.email || user.email;
+  const customerPhone = body.customerPhone || clientUser?.phone;
+  const leadId = String(body.leadId || clientUser?.leadId || user.leadId || '');
+  const clientId = String(body.clientId || clientUser?.clientId || '');
 
   try {
-    const invoice = await createOfferingsInvoice({
-      quote,
-      customerName,
-      customerEmail,
-      ownerEmail: user.email,
-      customerCode: clientId,
-      leadId,
-      projectName: body.projectName || 'Offerings selection',
-      issuedBy: user.name,
-      source: 'client',
-      validityPeriod: '30 Days (Standard)',
-    });
-
-    const order: OfferingsSubmittedOrder = {
-      id: `ord-${invoice.id}`,
-      createdAt: invoice.createdAt,
-      invoiceId: invoice.id,
-      quoteNumber: invoice.quoteNumber,
-      grandTotal: invoice.grandTotal,
+    const order = await persistOfferingOrder({
       items,
       customerName,
       customerEmail,
+      customerPhone,
+      leadId: leadId || undefined,
+      clientId: clientId || undefined,
+      ownerEmail: user.email,
+      issuedBy: user.name,
+      projectName: body.projectName || 'Offerings selection',
+      source: user.role === 'client' ? 'client' : 'staff',
+      extra: [clientUser?.id, clientUser?.leadId, clientUser?.clientId],
+    });
+
+    await replaceSavedOfferingsForClient({
+      customerEmail,
+      customerPhone,
       leadId,
       clientId,
-    };
+      customerName,
+      savedBy: user.email || user.name,
+      extra: [clientUser?.id, clientUser?.leadId, clientUser?.clientId],
+      items: items.map((line) => ({
+        prodId: String(line.offeringId || ''),
+        offeringName: line.offeringName,
+        skuId: line.sku,
+        category: line.room,
+        unitPrice: line.unitPrice,
+        quantity: line.quantity,
+        imageUrl: line.imageUrl,
+        room: line.room,
+      })),
+    }).catch((err) => console.warn('[offerings-orders] saved catalog sync failed:', err));
 
-    await createOfferingsOrder(order);
-    return NextResponse.json({ order, invoiceId: invoice.id, quoteNumber: invoice.quoteNumber });
+    return NextResponse.json({ order, invoiceId: order.invoiceId, quoteNumber: order.quoteNumber });
   } catch (err) {
     console.error('[offerings-orders POST]', err);
     return NextResponse.json({ error: 'Could not submit offerings order.' }, { status: 500 });
