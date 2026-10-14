@@ -7,7 +7,6 @@ export type { OfferingsInvoiceRecord, OfferingsInvoiceSummary };
 
 const FILE = path.join(process.cwd(), 'data', 'offerings-invoices.json');
 const COLLECTION = 'offerings_invoices';
-const useMysql = Boolean(process.env.VERCEL);
 
 function makeId() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -23,16 +22,24 @@ async function readFileAll(): Promise<OfferingsInvoiceRecord[]> {
   }
 }
 
-async function readAll(): Promise<OfferingsInvoiceRecord[]> {
-  if (useMysql) {
-    try {
-      return await readJsonCollection<OfferingsInvoiceRecord>(COLLECTION);
-    } catch (err) {
-      console.error('[invoice-archive] MySQL read failed:', err);
-      return [];
-    }
+function mergeById(rows: OfferingsInvoiceRecord[]) {
+  const byId = new Map<string, OfferingsInvoiceRecord>();
+  for (const row of rows) {
+    if (row?.id) byId.set(row.id, row);
   }
-  return readFileAll();
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+async function readAll(): Promise<OfferingsInvoiceRecord[]> {
+  let mysqlRows: OfferingsInvoiceRecord[] = [];
+  try {
+    mysqlRows = await readJsonCollection<OfferingsInvoiceRecord>(COLLECTION);
+  } catch (err) {
+    console.error('[invoice-archive] MySQL read failed:', err);
+  }
+  return mergeById([...(await readFileAll()), ...mysqlRows]);
 }
 
 export function toInvoiceSummary(row: OfferingsInvoiceRecord): OfferingsInvoiceSummary {
@@ -57,19 +64,23 @@ export async function createOfferingsInvoice(
     quote,
   };
 
-  if (useMysql) {
-    await upsertJsonRecord(COLLECTION, record);
-    return record;
-  }
-
+  let persisted = false;
   try {
-    const all = await readFileAll();
-    all.unshift(record);
+    await upsertJsonRecord(COLLECTION, record);
+    persisted = true;
+  } catch (err) {
+    console.error('[invoice-archive] MySQL write failed:', err);
+  }
+  try {
+    const all = mergeById([record, ...(await readFileAll())]);
     await mkdir(path.dirname(FILE), { recursive: true });
     await writeFile(FILE, JSON.stringify(all, null, 2), 'utf8');
+    persisted = true;
   } catch (err) {
-    console.warn('[invoice-archive] File write failed, using MySQL:', err);
-    await upsertJsonRecord(COLLECTION, record);
+    console.warn('[invoice-archive] File write failed:', err);
+  }
+  if (!persisted) {
+    throw new Error('Could not persist offering invoice.');
   }
   return record;
 }

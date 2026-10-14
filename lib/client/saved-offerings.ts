@@ -1,5 +1,6 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
+import { hasIdentity, identitiesOverlap, offeringIdentityKeys, type OfferingIdentity } from '@/lib/client/offering-identity';
 
 export type SavedOfferingItem = {
   prodId: string;
@@ -53,12 +54,18 @@ async function ensureTable() {
       image_url TEXT,
       room VARCHAR(128) DEFAULT '',
       saved_by VARCHAR(255) DEFAULT '',
+      identity_keys TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_email (customer_email),
       INDEX idx_phone (customer_phone),
       INDEX idx_lead (lead_id)
     )
   `);
+  try {
+    await pool.query('ALTER TABLE client_saved_offerings ADD COLUMN identity_keys TEXT');
+  } catch {
+    /* column already exists */
+  }
 }
 
 function mapRow(row: RowDataPacket): SavedOfferingRow {
@@ -90,6 +97,7 @@ export async function replaceSavedOfferingsForClient(input: {
   clientId?: string;
   customerName?: string;
   savedBy?: string;
+  extra?: Array<string | number | null | undefined>;
   items: SavedOfferingItem[];
 }) {
   await ensureTable();
@@ -99,6 +107,13 @@ export async function replaceSavedOfferingsForClient(input: {
   const leadId = String(input.leadId || '').trim();
   const clientId = String(input.clientId || '').trim();
   const assignmentId = `asg-${Date.now()}`;
+  const identityKeys = offeringIdentityKeys({
+    email,
+    phone,
+    leadId,
+    clientId,
+    extra: input.extra,
+  }).join('|');
 
   const clauses: string[] = [];
   const params: string[] = [];
@@ -126,8 +141,8 @@ export async function replaceSavedOfferingsForClient(input: {
     await pool.query<ResultSetHeader>(
       `INSERT INTO client_saved_offerings
         (assignment_id, customer_email, customer_phone, lead_id, client_id, customer_name,
-         prod_id, offering_name, sku_id, category, unit_price, quantity, image_url, room, saved_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         prod_id, offering_name, sku_id, category, unit_price, quantity, image_url, room, saved_by, identity_keys)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         assignmentId,
         email,
@@ -144,6 +159,7 @@ export async function replaceSavedOfferingsForClient(input: {
         item.imageUrl || '',
         item.room || '',
         String(input.savedBy || ''),
+        identityKeys,
       ]
     );
   }
@@ -151,46 +167,28 @@ export async function replaceSavedOfferingsForClient(input: {
   return { assignmentId, count: input.items.length };
 }
 
-export async function listSavedOfferingsForClient(identity: {
-  email?: string | null;
-  phone?: string | null;
-  leadId?: string | null;
-  clientId?: string | null;
-}) {
+export async function listSavedOfferingsForClient(identity: OfferingIdentity) {
+  if (!hasIdentity(identity)) return [];
   await ensureTable();
   const pool = getHomesMerryDbPool();
-  const email = String(identity.email || '').trim().toLowerCase();
-  const phone = phoneTail(identity.phone);
-  const leadId = String(identity.leadId || '').trim();
-  const clientId = String(identity.clientId || '').replace(/^BLR-/i, '').trim();
-
-  const clauses: string[] = [];
-  const params: string[] = [];
-  if (email) {
-    clauses.push('customer_email = ?');
-    params.push(email);
-  }
-  if (phone) {
-    clauses.push('customer_phone = ?');
-    params.push(phone);
-  }
-  if (leadId) {
-    clauses.push('lead_id = ?');
-    params.push(leadId);
-  }
-  if (clientId) {
-    clauses.push('client_id = ? OR client_id = ? OR lead_id = ?');
-    params.push(clientId, `BLR-${clientId}`, clientId);
-  }
-  if (!clauses.length) return [];
-
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT * FROM client_saved_offerings WHERE ${clauses.join(' OR ')} ORDER BY created_at DESC, id DESC`
+    'SELECT * FROM client_saved_offerings ORDER BY created_at DESC, id DESC LIMIT 3000'
   );
   const seen = new Set<string>();
   const items: SavedOfferingRow[] = [];
   for (const row of rows) {
     const mapped = mapRow(row);
+    if (
+      !identitiesOverlap(identity, {
+        email: mapped.customerEmail,
+        phone: mapped.customerPhone,
+        leadId: mapped.leadId,
+        clientId: mapped.clientId,
+        extra: String(row.identity_keys || '').split('|'),
+      })
+    ) {
+      continue;
+    }
     if (seen.has(mapped.prodId)) continue;
     seen.add(mapped.prodId);
     items.push(mapped);

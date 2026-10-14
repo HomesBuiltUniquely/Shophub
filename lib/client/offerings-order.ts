@@ -11,11 +11,29 @@ export type OfferingsSubmittedOrder = {
   items: OfferingDraftItem[];
   customerName?: string;
   customerEmail?: string;
+  customerPhone?: string;
   leadId?: string;
   clientId?: string;
+  source?: 'client' | 'staff';
+  identityKeys?: string[];
 };
 
 const SUBMITTED_KEY = 'hub_offerings_submitted';
+
+export function draftItemsFromQuoteLines(items: Array<Record<string, unknown>>): OfferingDraftItem[] {
+  return items.map((item, index) => ({
+    draftId: String(item.id || item.prodId || `line-${index}`),
+    offeringId: String(item.prodId || item.offeringId || item.id || item.skuId || item.sku || ''),
+    offeringName: String(item.offeringName || item.offering_name || 'Offering'),
+    sku: String(item.skuId || item.sku || ''),
+    unitPrice: Number(item.unitPrice || 0),
+    gstRate: 18,
+    quantity: Number(item.quantity || 1),
+    room: String(item.room || item.category || 'General'),
+    imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
+    addedAt: new Date().toISOString(),
+  }));
+}
 
 export function quoteModelFromDraftItems(items: OfferingDraftItem[], customerName?: string): QuoteModel {
   const summary = getDraftSummary(items);
