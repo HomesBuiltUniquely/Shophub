@@ -58,10 +58,9 @@ export async function GET(request: NextRequest) {
 
     const leadId = effectiveLeadId;
 
-    // Parallel fetch from project-erp and DesignModule with graceful settled error handling
     const [leadRes, pipelineRes, quoteRes, paymentRes, appointmentsRes, designPaymentRes] =
       await Promise.allSettled([
-        getLeadDetails(leadId),
+        getLeadDetails(leadId, { email: clientUser?.email, phone: clientUser?.phone }),
         getCrmPipeline(),
         getHubQuote(leadId),
         getActivePaymentLinks(leadId),
@@ -96,7 +95,11 @@ export async function GET(request: NextRequest) {
       dashboardData.profile.clientId = clientUser.clientId;
       dashboardData.profile.propertyDetails = clientUser.propertyDetails;
       dashboardData.profile.propertyType = clientUser.propertyType;
-      dashboardData.profile.leadId = clientUser.leadId || leadId || '';
+      dashboardData.profile.leadId = String(lead?.id || clientUser.leadId || leadId || '');
+    }
+    if (lead?.id) {
+      dashboardData.leadId = String(lead.id);
+      dashboardData.profile.leadId = String(lead.id);
     }
 
     return NextResponse.json({

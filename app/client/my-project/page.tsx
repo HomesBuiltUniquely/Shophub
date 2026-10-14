@@ -51,59 +51,15 @@ function MyProjectContent() {
   }, [dashboardData?.profile?.leadId]);
 
   // Fallback defaults matching screenshot exactly
-  const phaseTitle = projectData?.currentPhaseTitle || 'Modular Carpentry Installation';
-  const progress = projectData?.overallProgressPercentage ?? 68;
-  const sitePhotos = projectData?.sitePhotos || [
-    {
-      id: 'photo-kitchen',
-      roomName: 'Kitchen - [R0]',
-      title: 'Kitchen - [R0]',
-      caption: 'Upper loft cabinets in ceramic finish, lower base units with aluminium handles, Jet Black granite countertop with integrated hob and chimney hood.',
-      date: 'Design Approved',
-      imageUrl: '/images/projects/kitchen-r0.jpg',
-      isFeatured: true,
-    },
-    {
-      id: 'photo-living',
-      roomName: 'Living & Dining - [R0]',
-      title: 'Living & Dining - [R0]',
-      caption: 'Feature TV wall with curved arch wallpaper backdrop, suspended cabinetry with brass accents, CNC jaali partition, and hallway gypsum archway.',
-      date: 'Design Approved',
-      imageUrl: '/images/projects/living-dining-r0.jpg',
-    },
-    {
-      id: 'photo-mbr',
-      roomName: 'Master bedroom - [R0]',
-      title: 'Master bedroom - [R0]',
-      caption: 'Floor-to-ceiling wardrobe in natural oak veneer finish with aluminium profile handles, subtle wall trims, and warm textured paint accent wall.',
-      date: 'Design Approved',
-      imageUrl: '/images/projects/master-bedroom-r0.jpg',
-    },
-    {
-      id: 'photo-kbr',
-      roomName: 'Guest bedroom - [R0]',
-      title: 'Guest bedroom - [R0]',
-      caption: 'Integrated study desk with open pine wood ledges, tall storage unit with tandem drawers in macchiato, and fluted glass aluminium profile wardrobe.',
-      date: 'Design Approved',
-      imageUrl: '/images/projects/guest-bedroom-r0.jpg',
-    },
-  ];
-  const readiness = projectData?.readinessItems || [
-    { name: 'Material Sourcing', percentage: 100, subtext: 'All premium finishes arrived at warehouse.', isComplete: true },
-    { name: 'Factory Production', percentage: 85, subtext: 'Modular units for Guest Room in final assembly.', isComplete: false },
-    { name: 'On-Site Installation', percentage: 42, subtext: 'Flooring complete. Cabinetry framing in progress.', isComplete: false },
-  ];
+  const phaseTitle = projectData?.currentPhaseTitle || dashboardData?.metrics?.find((m) => m.type === 'stage')?.value || 'Project in progress';
+  const progress = projectData?.overallProgressPercentage ?? dashboardData?.metrics?.find((m) => m.type === 'completion')?.percentage ?? 0;
+  const sitePhotos = projectData?.sitePhotos || [];
+  const readiness = projectData?.readinessItems || [];
   const nextBigStep = projectData?.nextBigStep || {
-    title: 'Hardwood Flooring Polish',
-    startDate: 'Starting June 24, 2024',
+    title: phaseTitle,
+    startDate: 'In progress',
   };
-  const milestones = projectData?.timelineMilestones || [
-    { id: '1', title: 'Civil & Electrical Modifications', date: 'May 28', description: 'Concealed wiring, lighting points, and partition walls finalized.', status: 'completed' as const },
-    { id: '2', title: 'Flooring Installation', date: 'June 05', description: 'Italian marble laying and initial grinding in living areas.', status: 'completed' as const },
-    { id: '3', title: 'Modular Carpentry Installation', date: 'June 20', description: 'Kitchen cabinets and wardrobe frameworks are being fitted.', status: 'active' as const, estCompletion: 'Est. Completion: June 20' },
-    { id: '4', title: 'False Ceiling & Painting', date: 'June 25', description: 'Installation of POP designs followed by base coat paint.', status: 'upcoming' as const },
-    { id: '5', title: 'Project Handover', date: 'July 15', description: 'Deep cleaning, final snag check, and key handover ceremony.', status: 'upcoming' as const },
-  ];
+  const milestones = projectData?.timelineMilestones || [];
   const team = projectData?.teamContacts || [
     { id: '1', name: 'Seher', role: 'LEAD DESIGNER', email: 'seher@hubinterior.com', avatarUrl: '', actionType: 'email' as const },
     { id: '2', name: 'Sharanya', role: 'RELATIONSHIP MANAGER', phone: '+918755009932', avatarUrl: '', actionType: 'call' as const },

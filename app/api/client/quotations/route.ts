@@ -10,6 +10,12 @@ import {
 import mysql from 'mysql2/promise';
 
 import { resolveClientUser } from '@/lib/client/userLeadResolver';
+import {
+  getPublicQuote,
+  getPublicQuoteRevisions,
+  quoteIdFromDesignLead,
+  resolveDesignLead,
+} from '@/lib/api/design-module-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +93,151 @@ async function resolveLeadDbId(pool: mysql.Pool, leadIdParam: string): Promise<n
   }
 }
 
+function mapQuoteDataToActive(
+  data: Record<string, any>,
+  extras?: { quoteId?: string | number; createdAt?: string; isApproved?: boolean; quoteUrl?: string }
+) {
+  const quoteNumber = data.quoteNum || `Q-${data.quoteID || extras?.quoteId || ''}`;
+  const totalAmount = Number(data.finalTotalPrice) || Number(data.totalPrice) || 0;
+  const quoteId = data.quoteID || extras?.quoteId || '';
+  const quoteUrl = extras?.quoteUrl || (quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : '');
+  const optionDetails = Array.isArray(data.optionDetails) ? data.optionDetails : [];
+  const quoteOptionsData = data.quoteOptionsData || {};
+
+  const rooms: QuoteRoomSection[] = optionDetails.map((opt: any, idx: number) => {
+    const rawName = opt.roomName || opt.optionName || `Room ${idx + 1}`;
+    const cleanRoomName = String(rawName).replace(/\s*-\s*\[.*?\]$/, '').trim();
+    const roomPrice = Number(opt.totalPrice || opt.woodWorkPrice || opt.unitsPrice) || 0;
+    const qData = quoteOptionsData[String(idx)] || opt;
+    const items: QuoteRoomItem[] = [];
+    if (Array.isArray(qData?.lofts)) {
+      qData.lofts.forEach((l: any, lIdx: number) => {
+        items.push({
+          id: `loft-${l.itemID || lIdx}`,
+          name: `${l.description || 'Frame Loft'}${l.dimensions ? ` (${l.dimensions})` : ''}`,
+          price: Number(l.price) || 0,
+          priceFormatted: `₹${Number(l.price || 0).toLocaleString('en-IN')}`,
+          category: l.carcass?.coreMatl || 'Loft & Storage',
+        });
+      });
+    }
+    if (Array.isArray(qData?.units)) {
+      [...qData.units]
+        .sort((a: any, b: any) => (Number(b.price) || 0) - (Number(a.price) || 0))
+        .forEach((u: any, uIdx: number) => {
+          items.push({
+            id: `unit-${u.itemID || uIdx}`,
+            name: `${u.description || u.label || 'Cabinet Unit'}${u.dimensions ? ` (${u.dimensions})` : ''}`,
+            price: Number(u.price) || 0,
+            priceFormatted: `₹${Number(u.price || 0).toLocaleString('en-IN')}`,
+            category: u.cabinetClass || 'Modular Cabinetry',
+          });
+        });
+    }
+    let icon: QuoteRoomSection['icon'] = 'other';
+    const lower = cleanRoomName.toLowerCase();
+    if (lower.includes('living') || lower.includes('dining')) icon = 'living';
+    else if (lower.includes('kitchen')) icon = 'kitchen';
+    else if (lower.includes('bed')) icon = 'bedroom';
+    return {
+      id: `room-${idx}`,
+      roomName: cleanRoomName,
+      icon,
+      totalAmount: roomPrice,
+      totalAmountFormatted: `₹${roomPrice.toLocaleString('en-IN')}`,
+      defaultExpanded: idx < 2,
+      items: items.slice(0, 8),
+    };
+  });
+
+  const liveSubtotal = Math.round(totalAmount / 1.09);
+  const liveTax = totalAmount - liveSubtotal;
+  const dateIssued = extras?.createdAt
+    ? new Date(extras.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : data.createdOn
+      ? new Date(data.createdOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const status: QuotationSummaryItem['status'] = extras?.isApproved ? 'Approved' : 'Pending Approval';
+  const summary: QuotationSummaryItem = {
+    id: `quote-${quoteId}`,
+    quoteNumber,
+    dateIssued,
+    revision: data.revision || 'v1.0',
+    status,
+    totalAmount,
+    totalAmountFormatted: `₹${totalAmount.toLocaleString('en-IN')}`,
+    isLatest: true,
+    quoteUrl,
+    pdfUrl: quoteUrl,
+  };
+
+  const activeQuote: ActiveQuoteDetail = {
+    id: summary.id,
+    quoteNumber,
+    revision: summary.revision,
+    revisionLabel: `${quoteNumber} • Live from design module`,
+    status,
+    validUntil: '30 days from issue',
+    validityNote: 'Quotation fetched from the design module Prolance quote.',
+    pdfUrl: quoteUrl,
+    quoteUrl,
+    rooms,
+    financialSummary: {
+      subtotal: liveSubtotal,
+      subtotalFormatted: `₹${liveSubtotal.toLocaleString('en-IN')}`,
+      taxPercent: 9,
+      taxAmount: liveTax,
+      taxAmountFormatted: `₹${liveTax.toLocaleString('en-IN')}`,
+      totalAmount,
+      totalAmountFormatted: `₹${totalAmount.toLocaleString('en-IN')}`,
+      note: 'Includes factory woodwork, fittings, labor, and GST.',
+    },
+    revisionComparison: {
+      comparedWith: 'None',
+      priceVariance: 0,
+      priceVarianceFormatted: '₹0',
+      isIncrease: false,
+      keyChanges: [],
+    },
+  };
+
+  return { summary, activeQuote };
+}
+
+async function quotationsFromPublicQuote(quoteId: string | number, isApproved = false) {
+  const payload = await getPublicQuote(quoteId);
+  if (!payload) return null;
+  const data = ((payload as { data?: Record<string, any> }).data || payload) as Record<string, any>;
+  if (!data?.quoteID && !data?.quoteNum && !(Number(data.totalPrice) > 0)) return null;
+  const revisions = await getPublicQuoteRevisions(quoteId);
+  const mapped = mapQuoteDataToActive(data, {
+    quoteId: data.quoteID || quoteId,
+    createdAt: revisions[0]?.createdAt || data.createdOn,
+    isApproved,
+  });
+  const recentQuotations: QuotationSummaryItem[] =
+    revisions.length > 0
+      ? revisions.map((rev, idx) => ({
+          ...mapped.summary,
+          id: `quote-${rev.quoteId}`,
+          quoteNumber: idx === 0 ? mapped.summary.quoteNumber : `${mapped.summary.quoteNumber}-r${idx + 1}`,
+          dateIssued: rev.createdAt
+            ? new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : mapped.summary.dateIssued,
+          isLatest: idx === 0,
+          quoteUrl: `https://design.hubinterior.com/quote/${rev.quoteId}`,
+          pdfUrl: `https://design.hubinterior.com/quote/${rev.quoteId}`,
+        }))
+      : [mapped.summary];
+  return {
+    recentQuotations,
+    activeQuote: mapped.activeQuote,
+    isLiveBackend: true,
+    lastUpdated: new Date().toISOString(),
+  } as QuotationsPageData;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -99,7 +250,14 @@ export async function GET(request: NextRequest) {
       clientUser?.leadId ||
       (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
-    if (!effectiveLeadId) {
+    const designLead = await resolveDesignLead({
+      leadId: effectiveLeadId,
+      email: clientUser?.email,
+      phone: clientUser?.phone,
+    });
+    const liveQuoteId = quoteIdFromDesignLead(designLead);
+
+    if (!effectiveLeadId && !designLead) {
       return NextResponse.json({
         success: true,
         data: {
@@ -111,68 +269,71 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const leadId = effectiveLeadId;
+    const leadId = String(designLead?.id || effectiveLeadId || '');
     const pool = getDbPool();
-    const dbLeadId = await resolveLeadDbId(pool, leadId);
-
-    if (!dbLeadId) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          recentQuotations: [],
-          activeQuote: null,
-          isLiveBackend: true,
-          lastUpdated: new Date().toISOString(),
-        },
-      });
-    }
+    const dbLeadId = leadId ? await resolveLeadDbId(pool, leadId) : null;
 
     // 1. Fetch Lead record metadata to determine approval / payment status
     let isLeadApproved = false;
     let leadQuoteLink = '';
-    let matchedQuoteId: string | number | null = null;
-    try {
-      const [leadRows]: any = await pool.query(
-        'SELECT id, project_name, payload, prolance_quote_id FROM leads WHERE id = ? LIMIT 1',
-        [dbLeadId]
-      );
-      if (leadRows && leadRows.length > 0) {
-        const rawPayload = leadRows[0].payload;
-        const p = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : (rawPayload || {});
-        isLeadApproved = Boolean(
-          p.ten_percent_payment_met ||
-          p.bookingDone ||
-          p.design_ten_percent_payment_met ||
-          p.decision === 'Approved'
+    let matchedQuoteId: string | number | null = liveQuoteId;
+    if (dbLeadId) {
+      try {
+        const [leadRows]: any = await pool.query(
+          'SELECT id, project_name, payload, prolance_quote_id FROM leads WHERE id = ? LIMIT 1',
+          [dbLeadId]
         );
-        leadQuoteLink = p.quoteLink || p.quoteSentInfo?.quoteLink || '';
-        matchedQuoteId =
-          p.experience?.quoteId ||
-          p.bookingDone?.quoteId ||
-          leadRows[0].prolance_quote_id ||
-          (dbLeadId === 99903 ? '75774' : null);
+        if (leadRows && leadRows.length > 0) {
+          const rawPayload = leadRows[0].payload;
+          const p = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : (rawPayload || {});
+          isLeadApproved = Boolean(
+            p.ten_percent_payment_met ||
+            p.bookingDone ||
+            p.design_ten_percent_payment_met ||
+            p.decision === 'Approved'
+          );
+          leadQuoteLink = p.quoteLink || p.quoteSentInfo?.quoteLink || '';
+          matchedQuoteId =
+            p.experience?.quoteId ||
+            p.bookingDone?.quoteId ||
+            leadRows[0].prolance_quote_id ||
+            liveQuoteId;
+        }
+      } catch (e) {
+        console.warn('[Quotations API] Failed to fetch lead payload:', e);
       }
-    } catch (e) {
-      console.warn('[Quotations API] Failed to fetch lead payload:', e);
     }
 
-    if (dbLeadId === 99903 && !matchedQuoteId) {
-      matchedQuoteId = '75774';
+    if (!matchedQuoteId && liveQuoteId) {
+      matchedQuoteId = liveQuoteId;
     }
 
-    // 2. Fetch all quote snapshots for this lead or quote_id ordered chronologically (id ASC)
-    const [snapshots]: any = await pool.query(
-      'SELECT id, lead_id, quote_id, payload_json, created_at FROM lead_prolance_quote_snapshots WHERE lead_id = ? OR quote_id = ? OR (quote_id = 75774 AND ? = 99903) ORDER BY id ASC',
-      [dbLeadId, matchedQuoteId || dbLeadId, dbLeadId]
-    );
+    let snapshots: any[] = [];
+    if (dbLeadId || matchedQuoteId) {
+      try {
+        const [rows]: any = await pool.query(
+          'SELECT id, lead_id, quote_id, payload_json, created_at FROM lead_prolance_quote_snapshots WHERE lead_id = ? OR quote_id = ? ORDER BY id ASC',
+          [dbLeadId || matchedQuoteId, matchedQuoteId || dbLeadId]
+        );
+        snapshots = rows || [];
+      } catch (err) {
+        console.warn('[Quotations API] snapshot lookup failed:', err);
+      }
+    }
 
-    if (!snapshots || snapshots.length === 0) {
+    if (!snapshots.length) {
+      if (matchedQuoteId) {
+        const livePage = await quotationsFromPublicQuote(matchedQuoteId, isLeadApproved);
+        if (livePage) {
+          return NextResponse.json({ success: true, data: livePage, source: 'design-module-quote' });
+        }
+      }
       return NextResponse.json({
         success: true,
         data: {
           recentQuotations: [],
           activeQuote: null,
-          isLiveBackend: true,
+          isLiveBackend: Boolean(designLead?.id),
           lastUpdated: new Date().toISOString(),
         },
       });
