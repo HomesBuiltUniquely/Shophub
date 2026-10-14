@@ -4,12 +4,20 @@ const DESIGN_MODULE_BASE_URL = (
   'https://api.hubinterior.com'
 ).replace(/\/+$/, '');
 
-const DESIGN_AUTH_TOKEN =
-  process.env.DESIGN_MODULE_TOKEN ||
-  process.env.NEXT_PUBLIC_DESIGN_MODULE_TOKEN ||
-  'sess-1724154432000-ab12cd34';
+/** Read-only Design Module service token (dm_svc_…). Never a designer sess- login. */
+export function designServiceToken() {
+  return String(process.env.DESIGN_MODULE_TOKEN || process.env.DESIGN_SERVICE_API_KEY || '').trim();
+}
 
-const EXTERNAL_API_KEY = process.env.EXTERNAL_LEAD_INGEST_API_KEY || 'hi';
+export function designServiceHeaders(): Record<string, string> {
+  const token = designServiceToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+    headers['X-Design-Service-Key'] = token;
+  }
+  return headers;
+}
 
 /** Visual left→right order. `id` is the Design Module milestone ID, not an array position. */
 export const DESIGN_TRACKER_MILESTONES = [
@@ -170,15 +178,17 @@ const QUEUE_TTL_MS = 30_000;
 
 async function designFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   const url = `${DESIGN_MODULE_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const token = designServiceToken();
+  if (!token) {
+    console.warn('[Design Module] DESIGN_MODULE_TOKEN is missing; skipped', path);
+    return null;
+  }
   try {
     const res = await fetch(url, {
       ...init,
       method: init?.method || 'GET',
       headers: {
-        Authorization: `Bearer ${DESIGN_AUTH_TOKEN}`,
-        'Content-Type': 'application/json',
-        'x-external-api-key': EXTERNAL_API_KEY,
-        'x-api-key': EXTERNAL_API_KEY,
+        ...designServiceHeaders(),
         ...(init?.headers || {}),
       },
       cache: 'no-store',
@@ -461,9 +471,7 @@ export async function getLeadQuoteVersions(leadId: string | number) {
 export async function getPublicQuote(quoteId: string | number) {
   const id = digits(quoteId);
   if (!id) return null;
-  const live = await designFetch<Record<string, unknown>>(`/api/prolance-test/quotes/share/${id}?live=1`, {
-    headers: { Authorization: `Bearer ${DESIGN_AUTH_TOKEN}` },
-  });
+  const live = await designFetch<Record<string, unknown>>(`/api/prolance-test/quotes/share/${id}?live=1`);
   if (live) return live;
   try {
     const res = await fetch(`${DESIGN_MODULE_BASE_URL}/api/prolance-test/public/quotes/view/${id}`, {

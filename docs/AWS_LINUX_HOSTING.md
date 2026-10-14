@@ -201,11 +201,10 @@ ERP_API_BASE_URL=https://hows.hubinterior.com
 ERP_AUTH_TOKEN=
 
 DESIGN_MODULE_BASE_URL=https://api.hubinterior.com
-DESIGN_MODULE_TOKEN=
+DESIGN_MODULE_TOKEN=dm_svc_REPLACE_ME
 DESIGN_MODULE_FRONTEND_URL=https://design.hubinterior.com
 NEXT_PUBLIC_DESIGN_MODULE_FRONTEND_URL=https://design.hubinterior.com
 HUB_CRM_QUOTE_BASE_URL=https://api.hubinterior.com
-EXTERNAL_LEAD_INGEST_API_KEY=hi
 
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=

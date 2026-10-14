@@ -1,4 +1,5 @@
 import apiClient from './axios-instance';
+import { designServiceHeaders, designServiceToken } from './design-module-client';
 
 export interface Lead {
   id: number | string;
@@ -325,7 +326,6 @@ function uniqueCrmNumericId(leadType: string | undefined, id: number) {
 const HOWS_LEADS_FILTER_URL = 'https://hows.hubinterior.com/v1/leads/filter';
 const DESIGN_LEADS_QUEUE_URL = 'https://api.hubinterior.com/api/leads/queue';
 const DEFAULT_CRM_TOKEN = process.env.NEXT_PUBLIC_CRM_BEARER_TOKEN || 'token_1_1787224003564';
-const DEFAULT_DESIGN_TOKEN = process.env.NEXT_PUBLIC_DESIGN_MODULE_TOKEN || 'sess-1724154432000-ab12cd34';
 
 function mapCrmLeads(rawLeads: Lead[]): { customers: QuoteCustomer[]; projects: QuoteProject[] } {
   const customers: QuoteCustomer[] = [];
@@ -536,17 +536,14 @@ export async function getDesignBucketCustomersAndProjects(
   projects: QuoteProject[];
 }> {
   const allowFallback = options?.fallback !== false;
-  const designToken = token || (allowFallback ? DEFAULT_DESIGN_TOKEN : '');
+  const designToken = designServiceToken() || (token?.startsWith('dm_svc_') ? token : '');
   if (!designToken) {
     return { customers: [], projects: [] };
   }
   try {
     const res = await fetch(DESIGN_LEADS_QUEUE_URL, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${designToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: designServiceHeaders(),
       cache: 'no-store',
     });
 

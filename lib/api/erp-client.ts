@@ -3,6 +3,8 @@
  * Default location: http://localhost:8081
  */
 
+import { designServiceHeaders } from '@/lib/api/design-module-client';
+
 const ERP_BASE_URL =
   process.env.CRM_API_PROXY_TARGET ||
   process.env.ERP_API_BASE_URL ||
@@ -352,10 +354,7 @@ export async function getDesignModulePaymentSummary(
     try {
       const res = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.EXTERNAL_LEAD_INGEST_API_KEY || 'hi',
-        },
+        headers: designServiceHeaders(),
         signal: controller.signal,
         cache: 'no-store',
       });
