@@ -251,9 +251,10 @@ export async function GET(request: NextRequest) {
       (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
     const designLead = await resolveDesignLead({
-      leadId: effectiveLeadId,
+      leadId: effectiveLeadId && String(effectiveLeadId).replace(/\D/g, '').length >= 4 ? effectiveLeadId : null,
       email: clientUser?.email,
       phone: clientUser?.phone,
+      name: clientUser?.fullName,
     });
     const liveQuoteId = quoteIdFromDesignLead(designLead);
 

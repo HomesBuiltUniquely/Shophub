@@ -60,11 +60,7 @@ function MyProjectContent() {
     startDate: 'In progress',
   };
   const milestones = projectData?.timelineMilestones || [];
-  const team = projectData?.teamContacts || [
-    { id: '1', name: 'Seher', role: 'LEAD DESIGNER', email: 'seher@hubinterior.com', avatarUrl: '', actionType: 'email' as const },
-    { id: '2', name: 'Sharanya', role: 'RELATIONSHIP MANAGER', phone: '+918755009932', avatarUrl: '', actionType: 'call' as const },
-    { id: '3', name: 'Sohan', role: 'PROJECT MANAGER', phone: '+919741167755', avatarUrl: '', actionType: 'chat' as const },
-  ];
+  const team = projectData?.teamContacts || [];
   const revision = projectData?.latestRevision || {
     fileName: 'Project_Final_V4.pdf',
     fileSize: '12.4 MB',

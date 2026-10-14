@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
       clientUser?.leadId ||
       (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
+    if (effectiveLeadId && /^\d{1,3}$/.test(String(effectiveLeadId))) {
+      effectiveLeadId = null;
+    }
+
     if (
       effectiveLeadId === '99903' ||
       effectiveLeadId?.includes('99903') ||
@@ -36,17 +40,7 @@ export async function GET(request: NextRequest) {
       effectiveLeadId = '99903';
     }
 
-    // If the logged-in client has no CRM lead assigned yet, show their clean personalized initial portal
-    if (!effectiveLeadId && clientUser) {
-      const initialData = buildClientInitialDashboard(clientUser);
-      return NextResponse.json({
-        success: true,
-        data: initialData,
-        source: 'user-profile',
-      });
-    }
-
-    if (!effectiveLeadId) {
+    if (!clientUser && !effectiveLeadId) {
       return NextResponse.json(
         {
           success: false,
@@ -56,16 +50,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const leadId = effectiveLeadId;
+    const leadId = effectiveLeadId || '';
 
     const [leadRes, pipelineRes, quoteRes, paymentRes, appointmentsRes, designPaymentRes] =
       await Promise.allSettled([
-        getLeadDetails(leadId, { email: clientUser?.email, phone: clientUser?.phone }),
+        getLeadDetails(leadId, {
+          email: clientUser?.email,
+          phone: clientUser?.phone,
+          name: clientUser?.fullName,
+        }),
         getCrmPipeline(),
-        getHubQuote(leadId),
-        getActivePaymentLinks(leadId),
-        getUpcomingAppointments(leadId),
-        getDesignModulePaymentSummary(leadId),
+        getHubQuote(leadId || '0'),
+        getActivePaymentLinks(leadId || '0'),
+        getUpcomingAppointments(leadId || '0'),
+        leadId && String(leadId).length >= 4
+          ? getDesignModulePaymentSummary(leadId)
+          : Promise.resolve(null),
       ]);
 
     const lead = leadRes.status === 'fulfilled' ? leadRes.value : null;
@@ -75,6 +75,15 @@ export async function GET(request: NextRequest) {
     const appointments = appointmentsRes.status === 'fulfilled' ? appointmentsRes.value : null;
     const designPayment = designPaymentRes.status === 'fulfilled' ? designPaymentRes.value : null;
 
+    if (!lead && clientUser) {
+      const initialData = buildClientInitialDashboard(clientUser);
+      return NextResponse.json({
+        success: true,
+        data: initialData,
+        source: 'user-profile',
+      });
+    }
+
     const dashboardData = mapErpToDashboard(
       {
         lead,
@@ -82,9 +91,9 @@ export async function GET(request: NextRequest) {
         hubQuote,
         paymentLink,
         appointments: Array.isArray(appointments) ? appointments : undefined,
-        designPayment,
+        designPayment: lead?.id && designPayment?.leadId && Number(designPayment.leadId) !== Number(lead.id) ? null : designPayment,
       },
-      leadId
+      String(lead?.id || leadId)
     );
 
     // If a logged-in user exists, ensure their authenticated profile overrides any mock or stale CRM lead names

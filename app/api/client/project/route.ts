@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
       clientUser?.leadId ||
       (!clientUser ? process.env.NEXT_PUBLIC_DEFAULT_CLIENT_LEAD_ID || null : null);
 
+    if (effectiveLeadId && /^\d{1,3}$/.test(String(effectiveLeadId))) {
+      effectiveLeadId = clientUser?.leadId && String(clientUser.leadId).length >= 4 ? clientUser.leadId : null;
+    }
+
     if (
       effectiveLeadId === '99903' ||
       effectiveLeadId?.includes('99903') ||
@@ -30,101 +34,14 @@ export async function GET(request: NextRequest) {
       effectiveLeadId = '99903';
     }
 
-    if (!effectiveLeadId && clientUser) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          projectId: clientUser.clientId,
-          clientName: clientUser.fullName,
-          propertyTitle: `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`,
-          currentPhaseTitle: 'Initial Consultation & Site Measurement',
-          overallProgressPercentage: 12,
-          sitePhotos: [],
-          readinessItems: [
-            {
-              name: 'Design Consultation',
-              percentage: 100,
-              subtext: 'Initial consultation booked with Interior Designer.',
-              isComplete: true,
-            },
-            {
-              name: 'Site Measurement Prep',
-              percentage: 0,
-              subtext: 'Laser measurement scheduled for site dimensions.',
-              isComplete: false,
-            },
-          ],
-          nextBigStep: {
-            title: 'Initial Design Consultation & Site Measurement',
-            startDate: 'Ongoing',
-          },
-          timelineMilestones: [
-            {
-              id: 'step-1',
-              title: 'Booking Closure',
-              date: 'Completed',
-              description: 'Initial booking token confirmed.',
-              status: 'completed' as const,
-            },
-            {
-              id: 'step-2',
-              title: 'D1 Site Measurement',
-              date: 'Next',
-              description: 'Site architectural measurements and laser scan.',
-              status: 'active' as const,
-              estCompletion: 'Upcoming',
-            },
-            {
-              id: 'step-3',
-              title: 'DQC1 Drawing & 10% Payment',
-              date: 'Pending',
-              description: 'Detailed drawings and 10% milestone payment.',
-              status: 'upcoming' as const,
-            },
-          ],
-          teamContacts: [
-            {
-              id: 'team-1',
-              name: 'Design Team',
-              role: 'LEAD DESIGNER',
-              phone: '+91 97405 44327',
-              email: 'design@hubinterior.com',
-              avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-              actionType: 'call' as const,
-            },
-            {
-              id: 'team-2',
-              name: 'Relationship Manager',
-              role: 'RELATIONSHIP MANAGER',
-              phone: '+91 87550 09932',
-              email: 'support@hubinterior.com',
-              avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-              actionType: 'call' as const,
-            },
-          ],
-          latestRevision: {
-            fileName: 'Project_Onboarding.pdf',
-            fileSize: '1.2 MB',
-            updatedText: 'Booking Token Confirmed',
-            downloadUrl: undefined,
-          },
-          isLiveBackend: true,
-          lastUpdated: new Date().toISOString(),
-        },
-      });
-    }
-
-    if (!effectiveLeadId) {
-      return NextResponse.json({ success: false, error: 'No active project found' }, { status: 404 });
-    }
-
-    const leadId = effectiveLeadId;
+    const leadId = effectiveLeadId || '';
 
     const designLead = await resolveDesignLead({
-      leadId,
+      leadId: leadId && String(leadId).replace(/\D/g, '').length >= 4 ? leadId : null,
       email: clientUser?.email,
       phone: clientUser?.phone,
       pid: clientUser?.clientId,
+      name: clientUser?.fullName,
     });
 
     let lead: any = null;
@@ -132,6 +49,7 @@ export async function GET(request: NextRequest) {
       lead = await getLeadDetails(designLead?.id || leadId, {
         email: clientUser?.email,
         phone: clientUser?.phone,
+        name: clientUser?.fullName,
       });
     } catch {
       lead = null;
@@ -159,15 +77,12 @@ export async function GET(request: NextRequest) {
       ? `${clientUser.propertyType} • ${clientUser.city} ${clientUser.pincode}`
       : `${lead?.propertyType || '3 BHK Apartment'} • ${lead?.propertyLocation || 'Bangalore'}`;
 
-    // Lead Designer from CRM or fallback
-    const designerName = lead?.designerName || lead?.designer_name || 'Design Team';
-    const designerPhone = lead?.designerPhone || lead?.assigneePhone || '+91 97405 44327';
-    const designerEmail = lead?.designerEmail || 'design@hubinterior.com';
-
-    // Assigned Relationship Manager
-    const rmName = lead?.assignee || 'Relationship Manager';
-    const rmPhone = lead?.assigneePhone || '+91 87550 09932';
-    const rmEmail = lead?.assigneeEmail || 'support@hubinterior.com';
+    const designerName = lead?.designerName || lead?.designer_name || designLead?.designerName;
+    const designerPhone = lead?.designerPhone;
+    const designerEmail = lead?.designerEmail || designLead?.designerEmail;
+    const rmName = lead?.assignee || designLead?.salesExecutive;
+    const rmPhone = lead?.assigneePhone;
+    const rmEmail = lead?.assigneeEmail;
 
     // Project drawings & quotation
     const fileName = lead?.floorPlanUrl?.includes('REV-A') ? 'Project_Final_REV-A.pdf' : 'Project_Final.pdf';
@@ -215,15 +130,6 @@ export async function GET(request: NextRequest) {
         quoteLabel: quoteId ? `Quote #${quoteId}` : fileName,
         quoteUrl: quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : downloadUrl,
       });
-      if (lead?.designerName) {
-        projectData.teamContacts = projectData.teamContacts.map((contact) =>
-          contact.role === 'LEAD DESIGNER'
-            ? { ...contact, name: designerName, email: designerEmail, phone: designerPhone }
-            : contact.role === 'RELATIONSHIP MANAGER'
-              ? { ...contact, name: rmName, phone: rmPhone, email: rmEmail }
-              : contact
-        );
-      }
       return NextResponse.json({
         success: true,
         data: projectData,
@@ -245,25 +151,29 @@ export async function GET(request: NextRequest) {
       },
       timelineMilestones: [],
       teamContacts: [
-        {
-          id: 'team-1',
-          name: designerName,
-          role: 'LEAD DESIGNER',
-          email: designerEmail,
-          phone: designerPhone,
-          avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-          actionType: 'email',
-        },
-        {
-          id: 'team-2',
-          name: rmName,
-          role: 'RELATIONSHIP MANAGER',
-          phone: rmPhone,
-          email: rmEmail,
-          avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-          actionType: 'call',
-        },
-      ],
+        designerName
+          ? {
+              id: 'team-1',
+              name: designerName,
+              role: 'INTERIOR DESIGNER',
+              email: designerEmail,
+              phone: designerPhone,
+              avatarUrl: '',
+              actionType: 'email' as const,
+            }
+          : null,
+        rmName
+          ? {
+              id: 'team-2',
+              name: rmName,
+              role: 'RELATIONSHIP MANAGER',
+              phone: rmPhone,
+              email: rmEmail,
+              avatarUrl: '',
+              actionType: 'call' as const,
+            }
+          : null,
+      ].filter(Boolean) as ProjectPageData['teamContacts'],
       latestRevision: {
         fileName,
         fileSize: '',
