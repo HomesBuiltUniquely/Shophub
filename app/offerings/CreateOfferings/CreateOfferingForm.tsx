@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createProduct, updateOfferingSection } from '@/lib/api/offering-save';
 import { isUsableImageUrl } from '@/lib/media/offering-image';
+import OfferingImageUploader from '@/components/offerings/OfferingImageUploader';
 import RichTextEditor from './RichTextEditor';
 
 type TabId = 'GENERAL' | 'PRICING' | 'INVENTORY' | 'MEDIA' | 'SPECIFICATIONS' | 'SEO' | 'INTERNAL';
@@ -99,10 +100,6 @@ export default function CreateOfferingForm() {
   const [prodId, setProdId] = useState<number | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const submitInProgress = useRef(false);
-  const primaryImageRef = useRef<HTMLInputElement>(null);
-  const galleryImageRef = useRef<HTMLInputElement>(null);
-  const [uploadingMedia, setUploadingMedia] = useState<'primary' | number | null>(null);
-  const [gallerySlot, setGallerySlot] = useState(0);
   const tabIndex = TABS.indexOf(tab);
 
   const [form, setForm] = useState({
@@ -206,7 +203,7 @@ export default function CreateOfferingForm() {
           reorder_quantity: String(product.inventory?.reorder_quantity ?? ''),
           preferred_vendor: product.inventory?.sourcingLogistics?.preferred_vendor || 'IN_HOUSE',
           lead_time: Number(product.inventory?.sourcingLogistics?.lead_time) || 7,
-          primary_image: product.media?.primary_image || '',
+          primary_image: isUsableImageUrl(product.media?.primary_image) ? product.media.primary_image : '',
           gallery_images: Array.isArray(product.media?.gallery_images) && product.media.gallery_images.length
             ? [...product.media.gallery_images, '', '', '', ''].slice(0, 4)
             : prev.gallery_images,
@@ -278,23 +275,6 @@ export default function CreateOfferingForm() {
     });
   };
 
-  const uploadOfferingImage = async (file: File) => {
-    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
-    if (!allowed.includes(file.type) && !/\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)) {
-      throw new Error('Use PNG, JPG, WEBP, GIF, or SVG.');
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('Image must be 10MB or smaller.');
-    }
-    const body = new FormData();
-    body.append('file', file);
-    body.append('folder', 'offerings');
-    const res = await fetch('/api/uploads', { method: 'POST', body, credentials: 'include' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Could not upload image to S3.');
-    return String(data.url);
-  };
-
   const persistMedia = async (primary: string, gallery: string[]) => {
     if (prodId == null) return;
     await updateOfferingSection({
@@ -304,47 +284,11 @@ export default function CreateOfferingForm() {
       url_slug: form.url_slug || slugify(form.offering_name),
       payload: {
         primary_image: primary,
-        gallery_images: gallery.filter(Boolean),
+        gallery_images: gallery.filter((item) => isUsableImageUrl(item)),
         video_link: form.video_link,
       },
     });
     setSavedAt(formatTime(new Date()));
-  };
-
-  const handlePrimaryFile = async (file?: File) => {
-    if (!file) return;
-    setUploadingMedia('primary');
-    setError(null);
-    try {
-      const url = await uploadOfferingImage(file);
-      setField('primary_image', url);
-      await persistMedia(url, form.gallery_images);
-      setSuccess('Primary image uploaded to S3.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload image');
-    } finally {
-      setUploadingMedia(null);
-      if (primaryImageRef.current) primaryImageRef.current.value = '';
-    }
-  };
-
-  const handleGalleryFile = async (file: File | undefined, index: number) => {
-    if (!file) return;
-    setUploadingMedia(index);
-    setError(null);
-    try {
-      const url = await uploadOfferingImage(file);
-      const next = [...form.gallery_images];
-      next[index] = url;
-      setField('gallery_images', next);
-      await persistMedia(form.primary_image, next);
-      setSuccess('Gallery image uploaded to S3.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload image');
-    } finally {
-      setUploadingMedia(null);
-      if (galleryImageRef.current) galleryImageRef.current.value = '';
-    }
   };
 
   const addTag = () => {
@@ -892,46 +836,12 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Primary Image</h2>
                 <p className="text-xs text-gray-500 mt-0.5">The main hero image used in search results and catalog listings.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => primaryImageRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+              <OfferingImageUploader
+                value={form.primary_image}
+                onUploaded={async (url) => {
+                  setField('primary_image', url);
+                  await persistMedia(url, form.gallery_images);
                 }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handlePrimaryFile(e.dataTransfer.files?.[0]);
-                }}
-                className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white overflow-hidden text-center"
-              >
-                {isUsableImageUrl(form.primary_image) ? (
-                  <div className="relative">
-                    <img src={form.primary_image} alt="Primary" className="w-full max-h-72 object-contain bg-white" />
-                    <div className="absolute inset-x-0 bottom-0 bg-black/50 py-2 text-xs font-semibold text-white">
-                      {uploadingMedia === 'primary' ? 'Uploading to S3…' : 'Click or drop to replace'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-16">
-                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full text-gray-400">
-                      <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-gray-700">
-                      {uploadingMedia === 'primary' ? 'Uploading to S3…' : 'Click to upload or drag and drop'}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">SVG, PNG, JPG or GIF</p>
-                  </div>
-                )}
-              </button>
-              <input
-                ref={primaryImageRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handlePrimaryFile(e.target.files?.[0])}
               />
               <div>
                 <label className={labelCls}>Primary Image URL</label>
@@ -948,32 +858,19 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Gallery Images</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Additional photos showing different angles and details.</p>
               </div>
-              <input
-                ref={galleryImageRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleGalleryFile(e.target.files?.[0], gallerySlot)}
-              />
               <div className="grid grid-cols-4 gap-3">
                 {form.gallery_images.map((img, idx) => (
-                  <button
+                  <OfferingImageUploader
                     key={idx}
-                    type="button"
-                    className="aspect-square rounded-xl border-2 border-dashed border-gray-200 bg-white text-2xl text-gray-300 overflow-hidden relative"
-                    onClick={() => {
-                      setGallerySlot(idx);
-                      galleryImageRef.current?.click();
+                    compact
+                    value={img}
+                    onUploaded={async (url) => {
+                      const next = [...form.gallery_images];
+                      next[idx] = url;
+                      setField('gallery_images', next);
+                      await persistMedia(form.primary_image, next);
                     }}
-                  >
-                    {isUsableImageUrl(img) ? (
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                    ) : uploadingMedia === idx ? (
-                      <span className="text-xs text-gray-500">Uploading…</span>
-                    ) : (
-                      '+'
-                    )}
-                  </button>
+                  />
                 ))}
               </div>
             </section>

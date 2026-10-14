@@ -41,6 +41,7 @@ function OfferingThumb({
           fill
           className="object-cover"
           sizes="240px"
+          unoptimized
           onError={() => setFailed(true)}
         />
       ) : (
