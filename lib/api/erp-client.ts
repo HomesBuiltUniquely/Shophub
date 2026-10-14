@@ -89,7 +89,22 @@ function mapDesignLeadToErp(dm: {
   decisionSummary?: { finalBudget?: number };
 }) {
   const quoteId = dm.prolanceQuoteId || dm.experienceSummary?.quoteId || null;
-  const milestoneName = dm.currentMilestoneName || dm.projectStage || 'D1 SITE MEASUREMENT';
+  const MILESTONE_NAMES: Record<number, string> = {
+    7: 'KT TRANSFER',
+    0: 'D1 SITE MEASUREMENT',
+    1: 'DQC1',
+    2: '10% PAYMENT',
+    3: 'D2 SITE MASKING',
+    4: 'DQC2',
+    5: '40% PAYMENT',
+    6: 'PUSH TO PRODUCTION',
+  };
+  const milestoneName =
+    dm.currentMilestoneName ||
+    (dm.currentMilestoneIndex !== undefined && dm.currentMilestoneIndex !== null
+      ? MILESTONE_NAMES[Number(dm.currentMilestoneIndex)]
+      : undefined) ||
+    'D1 SITE MEASUREMENT';
   const quoteAmount = Number(dm.experienceSummary?.quoteAmount || dm.decisionSummary?.finalBudget || 0);
   return {
     id: dm.id,
@@ -104,7 +119,7 @@ function mapDesignLeadToErp(dm: {
     propertyPin: dm.intakePincode || '560001',
     project_stage: dm.projectStage,
     projectStage: dm.projectStage,
-    currentMilestoneIndex: dm.currentMilestoneIndex ?? 0,
+    currentMilestoneIndex: dm.currentMilestoneIndex,
     currentMilestoneName: milestoneName,
     currentMilestoneProgress: dm.currentMilestoneProgress ?? 0,
     stage: {
@@ -134,7 +149,7 @@ export async function getLeadDetails(
   const str = String(id || '').trim();
 
   try {
-    const { resolveDesignLead, resolveQuoteForLead, displayIndexFromApi } = await import(
+    const { resolveDesignLead, resolveQuoteForLead, resolveDesignTracker } = await import(
       '@/lib/api/design-module-client'
     );
     const live = await resolveDesignLead({
@@ -146,14 +161,19 @@ export async function getLeadDetails(
     if (live?.id) {
       const mapped = mapDesignLeadToErp(live);
       const quote = await resolveQuoteForLead(live);
-      const displayIndex = displayIndexFromApi(live.currentMilestoneIndex, live.currentMilestoneName);
+      const tracker = resolveDesignTracker(live);
       return {
         ...mapped,
-        displayMilestoneIndex: displayIndex,
+        currentMilestoneIndex: tracker.currentId,
+        currentMilestoneName: tracker.currentName,
+        currentMilestoneProgress: tracker.innerProgress,
+        displayMilestoneIndex: tracker.visualIndex,
         taskCompletions: live.taskCompletions || [],
         prolanceQuoteId: quote.quoteId || mapped.prolanceQuoteId,
         quoteId: quote.quoteId || mapped.quoteId,
-        quoteLink: quote.customerQuoteUrl || mapped.quoteLink,
+        quoteLink:
+          quote.customerQuoteUrl ||
+          (quote.quoteId ? `https://design.hubinterior.com/quote/${quote.quoteId}` : undefined),
         quotePayload: quote.payload,
         quoteVersions: quote.versions,
         totalPayableAmount:

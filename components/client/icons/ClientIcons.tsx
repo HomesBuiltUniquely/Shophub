@@ -1,16 +1,15 @@
 import React from 'react';
+import HubBrandLogo from '@/components/brand/HubLogo';
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
   size?: number;
 }
 
-export function HubLogo({ className = 'h-6', ...props }: React.SVGProps<SVGSVGElement>) {
+export function HubLogo({ className = '' }: { className?: string }) {
   return (
-    <div className="flex items-center select-none">
-      <span className="text-[#E52320] font-black text-2xl tracking-tighter uppercase font-sans">
-        HUB
-      </span>
+    <div className={`flex items-center select-none ${className}`}>
+      <HubBrandLogo height={26} />
     </div>
   );
 }

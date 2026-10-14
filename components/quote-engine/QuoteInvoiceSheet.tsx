@@ -126,7 +126,7 @@ export default function QuoteInvoiceSheet({
           </div>
           <div className="text-right">
             <img
-              src="/images/hub-logo.jpg"
+              src="/images/hub-logo.png"
               alt="HUB"
               className="ml-auto mb-2 h-10 w-auto object-contain"
             />

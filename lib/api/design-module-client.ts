@@ -11,26 +11,117 @@ const DESIGN_AUTH_TOKEN =
 
 const EXTERNAL_API_KEY = process.env.EXTERNAL_LEAD_INGEST_API_KEY || 'hi';
 
-/** Client-facing order. API still uses D1=0 … P2P=6 and KT TRANSFER=7. */
+/** Visual left→right order. `id` is the Design Module milestone ID, not an array position. */
 export const DESIGN_TRACKER_MILESTONES = [
-  { index: 0, apiIndex: 7, name: 'KT TRANSFER', description: 'Kickoff transfer from sales to the design team.' },
-  { index: 1, apiIndex: 0, name: 'D1 SITE MEASUREMENT', description: 'Site architectural measurement and D1 task pack.' },
-  { index: 2, apiIndex: 1, name: 'DQC1', description: 'First-cut design, drawings, and quotation discussion.' },
-  { index: 3, apiIndex: 2, name: '10% PAYMENT', description: 'Design module 10% payment after DQC1.' },
-  { index: 4, apiIndex: 3, name: 'D2 SITE MASKING', description: 'Site masking request and physical dimensions review.' },
-  { index: 5, apiIndex: 4, name: 'DQC2', description: 'Material finishes freeze and DQC2 drawings.' },
-  { index: 6, apiIndex: 5, name: '40% PAYMENT', description: 'Design sign-off 40% payment before production.' },
-  { index: 7, apiIndex: 6, name: 'PUSH TO PRODUCTION', description: 'Factory manufacturing and production dispatch.' },
+  { index: 0, id: 7, apiIndex: 7, name: 'KT TRANSFER', description: 'Kickoff transfer from sales to the design team.' },
+  { index: 1, id: 0, apiIndex: 0, name: 'D1 SITE MEASUREMENT', description: 'Site architectural measurement and D1 task pack.' },
+  { index: 2, id: 1, apiIndex: 1, name: 'DQC1', description: 'First-cut design, drawings, and quotation discussion.' },
+  { index: 3, id: 2, apiIndex: 2, name: '10% PAYMENT', description: 'Design module 10% payment after DQC1.' },
+  { index: 4, id: 3, apiIndex: 3, name: 'D2 SITE MASKING', description: 'Site masking request and physical dimensions review.' },
+  { index: 5, id: 4, apiIndex: 4, name: 'DQC2', description: 'Material finishes freeze and DQC2 drawings.' },
+  { index: 6, id: 5, apiIndex: 5, name: '40% PAYMENT', description: 'Design sign-off 40% payment before production.' },
+  { index: 7, id: 6, apiIndex: 6, name: 'PUSH TO PRODUCTION', description: 'Factory manufacturing and production dispatch.' },
 ] as const;
 
-export function displayIndexFromApi(apiIndex?: number | null, name?: string | null) {
-  const byName = DESIGN_TRACKER_MILESTONES.find(
-    (m) => m.name.toLowerCase() === String(name || '').trim().toLowerCase()
-  );
-  if (byName) return byName.index;
-  const byApi = DESIGN_TRACKER_MILESTONES.find((m) => m.apiIndex === Number(apiIndex));
-  if (byApi) return byApi.index;
-  return 1;
+export const WORKFLOW_ORDER = [7, 0, 1, 2, 3, 4, 5, 6] as const;
+
+/** Exact Design Module task strings. "DQC 2 approval " includes a trailing space. */
+export const MILESTONE_TASKS: Record<number, string[]> = {
+  7: ['Upload KT files'],
+  0: ['Group Description', 'Mail loop chain 2 initiate', 'D1 for MMT request', 'D1 files upload'],
+  1: [
+    'First cut design + quotation discussion meeting request',
+    'meeting completed',
+    'DQC 1 submission - dwg + quotation',
+    'DQC 1 approval',
+  ],
+  2: ['10% payment collection', '10% payment approval'],
+  3: ['D2 - masking request raise', 'D2 - files upload'],
+  4: [
+    'Material selection meeting + quotation discussion',
+    'Material selection meeting completed',
+    'DQC 2 submission',
+    'DQC 2 approval ',
+    'Project manager approval',
+  ],
+  5: ['Design sign off', 'meeting completed', '40% collection', '40% payment approval'],
+  6: ['Cx approval for production', 'POC mail'],
+};
+
+export function visualIndexForMilestoneId(milestoneId: number) {
+  const pos = (WORKFLOW_ORDER as readonly number[]).indexOf(Number(milestoneId));
+  return pos >= 0 ? pos : 1;
+}
+
+export function milestoneById(milestoneId: number) {
+  return DESIGN_TRACKER_MILESTONES.find((m) => m.id === milestoneId) || DESIGN_TRACKER_MILESTONES[1];
+}
+
+export function getCurrentMilestoneIndexFromCompletions(
+  completions: Array<{ milestoneIndex: number; taskName: string }>
+) {
+  const done = new Set(completions.map((c) => `${c.milestoneIndex}::${c.taskName}`));
+  for (const i of WORKFLOW_ORDER) {
+    const tasks = MILESTONE_TASKS[i] || [];
+    const allDone = tasks.every((t) => done.has(`${i}::${t}`));
+    if (!allDone) return i;
+  }
+  return 6;
+}
+
+export function isMilestoneFullyComplete(
+  milestoneId: number,
+  completions: Array<{ milestoneIndex: number; taskName: string }>
+) {
+  const tasks = MILESTONE_TASKS[milestoneId] || [];
+  if (!tasks.length) return false;
+  const done = new Set(completions.map((c) => `${c.milestoneIndex}::${c.taskName}`));
+  return tasks.every((t) => done.has(`${milestoneId}::${t}`));
+}
+
+export interface DesignTrackerState {
+  currentId: number;
+  visualIndex: number;
+  currentName: string;
+  nextName: string;
+  overallPercent: number;
+  innerProgress: number;
+}
+
+export function resolveDesignTracker(lead: {
+  currentMilestoneIndex?: number | null;
+  currentMilestoneName?: string | null;
+  currentMilestoneProgress?: number | null;
+  taskCompletions?: Array<{ milestoneIndex: number; taskName: string; completedAt?: string }>;
+}): DesignTrackerState {
+  const completions = Array.isArray(lead.taskCompletions) ? lead.taskCompletions : [];
+  const rawIndex = lead.currentMilestoneIndex;
+  const hasApiIndex = rawIndex !== undefined && rawIndex !== null && !Number.isNaN(Number(rawIndex));
+
+  const currentId = hasApiIndex
+    ? Number(rawIndex)
+    : getCurrentMilestoneIndexFromCompletions(completions);
+
+  const visualIndex = visualIndexForMilestoneId(currentId);
+  const byId = milestoneById(currentId);
+  const currentName = byId.name;
+  const next = DESIGN_TRACKER_MILESTONES[visualIndex + 1];
+  const overallPercent = Math.round((visualIndex / DESIGN_TRACKER_MILESTONES.length) * 100);
+
+  return {
+    currentId,
+    visualIndex,
+    currentName,
+    nextName: next?.name || 'PRODUCTION IN PROGRESS',
+    overallPercent,
+    innerProgress: Math.max(0, Math.min(100, Number(lead.currentMilestoneProgress || 0))),
+  };
+}
+
+/** Visual slot for a Design milestone ID. Index 0 is D1, not KT. */
+export function displayIndexFromApi(apiIndex?: number | null, _name?: string | null) {
+  if (apiIndex === undefined || apiIndex === null || (apiIndex as unknown) === '') return 1;
+  return visualIndexForMilestoneId(Number(apiIndex));
 }
 
 export type DesignTrackerMilestone = (typeof DESIGN_TRACKER_MILESTONES)[number];
@@ -186,12 +277,12 @@ function phoneTail(value?: string | null) {
   return d.length >= 10 ? d.slice(-10) : d;
 }
 
-function normalizeName(value?: string | null) {
-  return String(value || '')
+function normalizeName(value?: string | null, keepTrailingDigits = false) {
+  const cleaned = String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+\d+$/, '')
     .trim();
+  return keepTrailingDigits ? cleaned : cleaned.replace(/\s+\d+$/, '').trim();
 }
 
 function matchesLead(
@@ -206,10 +297,13 @@ function matchesLead(
   const phone = phoneTail(opts.phone);
   if (phone && phone.length >= 10 && phoneTail(lead.contactNo) === phone) return true;
 
-  const name = normalizeName(opts.name);
-  if (name && name.length >= 4) {
-    const leadNames = [lead.projectName, lead.intakeCustomerName].map(normalizeName).filter(Boolean);
-    if (leadNames.some((n) => n === name || n.startsWith(name) || name.startsWith(n))) return true;
+  const exactName = normalizeName(opts.name, true);
+  const looseName = normalizeName(opts.name);
+  const leadExact = [lead.projectName, lead.intakeCustomerName].map((v) => normalizeName(v, true)).filter(Boolean);
+  const leadLoose = [lead.projectName, lead.intakeCustomerName].map((v) => normalizeName(v)).filter(Boolean);
+  if (exactName && exactName.length >= 4 && leadExact.some((n) => n === exactName)) return true;
+  if (looseName && looseName.length >= 4) {
+    if (leadLoose.some((n) => n === looseName)) return true;
   }
 
   const id = digits(opts.leadId);
@@ -223,17 +317,38 @@ function matchesLead(
 
 function scoreLead(lead: DesignLead, opts: { email?: string | null; phone?: string | null; name?: string | null }) {
   let score = 0;
-  if (normalizeEmail(opts.email) && normalizeEmail(lead.clientEmail) === normalizeEmail(opts.email)) score += 50;
-  if (phoneTail(opts.phone) && phoneTail(lead.contactNo) === phoneTail(opts.phone)) score += 40;
+  const exactName = normalizeName(opts.name, true);
+  const leadExact = normalizeName(lead.projectName || lead.intakeCustomerName, true);
   const name = normalizeName(opts.name);
   const leadName = normalizeName(lead.projectName || lead.intakeCustomerName);
-  if (name && leadName === name) score += 20;
-  else if (name && (leadName.startsWith(name) || name.startsWith(leadName))) score += 12;
-  if (lead.prolanceQuoteId || lead.experienceSummary?.quoteId) score += 8;
-  const display = displayIndexFromApi(lead.currentMilestoneIndex, lead.currentMilestoneName);
-  score += display;
-  score += Number(lead.id || 0) / 100000;
+  if (exactName && exactName === leadExact) score += 120;
+  else if (name && leadName === name) score += 40;
+  if (phoneTail(opts.phone) && phoneTail(lead.contactNo) === phoneTail(opts.phone)) score += 80;
+  if (normalizeEmail(opts.email) && normalizeEmail(lead.clientEmail) === normalizeEmail(opts.email)) score += 20;
   return score;
+}
+
+function pickDesignLead(
+  identityMatches: DesignLead[],
+  byId: DesignLead | null,
+  opts: { email?: string | null; phone?: string | null; name?: string | null }
+): DesignLead | null {
+  const ranked = [...identityMatches].sort((a, b) => scoreLead(b, opts) - scoreLead(a, opts));
+  const namedOrPhone = ranked.filter((lead) => scoreLead(lead, opts) >= 40);
+
+  if (namedOrPhone.length === 1) return namedOrPhone[0];
+  if (namedOrPhone.length > 1) {
+    const exact = namedOrPhone.filter((lead) => scoreLead(lead, opts) >= 120);
+    if (exact.length === 1) return exact[0];
+    return namedOrPhone.sort((a, b) => Number(b.id) - Number(a.id))[0];
+  }
+
+  if (ranked.length === 1) return ranked[0];
+  // Shared emails (staff/test) must not steal a further-along lead.
+  if (byId && ranked.some((lead) => lead.id === byId.id) && namedOrPhone.length === 0) {
+    return byId;
+  }
+  return byId || ranked[0] || null;
 }
 
 export async function resolveDesignLead(opts: {
@@ -247,7 +362,6 @@ export async function resolveDesignLead(opts: {
   const identityMatches = queue.filter((item) =>
     matchesLead(item, { email: opts.email, phone: opts.phone, pid: opts.pid, name: opts.name })
   );
-  identityMatches.sort((a, b) => scoreLead(b, opts) - scoreLead(a, opts));
 
   const directId = digits(opts.leadId);
   const byId =
@@ -260,7 +374,7 @@ export async function resolveDesignLead(opts: {
       ? await getDesignLeadByCrmId(opts.leadId)
       : null;
 
-  const chosen = identityMatches[0] || byId || byCrm;
+  const chosen = pickDesignLead(identityMatches, byId, opts) || byCrm;
   if (!chosen?.id) return null;
 
   const detail = (await getDesignLeadById(chosen.id)) || chosen;
@@ -274,13 +388,26 @@ export async function resolveDesignLead(opts: {
     Number(detail.assigned_designer_id || queued.assigned_designer_id) || null
   );
 
+  const currentMilestoneIndex = queued.currentMilestoneIndex ?? detail.currentMilestoneIndex;
+  const currentMilestoneName =
+    queued.currentMilestoneName || detail.currentMilestoneName || milestoneById(Number(currentMilestoneIndex ?? 0)).name;
+  const currentMilestoneProgress = queued.currentMilestoneProgress ?? detail.currentMilestoneProgress ?? 0;
+
+  console.info('[Design Module] tracker', {
+    leadId: chosen.id,
+    currentMilestoneIndex,
+    currentMilestoneName,
+    currentMilestoneProgress,
+    taskCompletions: completions,
+  });
+
   return {
     ...detail,
     ...queued,
     ...detail,
-    currentMilestoneIndex: queued.currentMilestoneIndex ?? detail.currentMilestoneIndex ?? 0,
-    currentMilestoneName: queued.currentMilestoneName || detail.currentMilestoneName || 'D1 SITE MEASUREMENT',
-    currentMilestoneProgress: queued.currentMilestoneProgress ?? detail.currentMilestoneProgress ?? 0,
+    currentMilestoneIndex,
+    currentMilestoneName,
+    currentMilestoneProgress,
     taskCompletions: completions,
     prolanceQuoteId: queued.prolanceQuoteId || detail.prolanceQuoteId,
     experienceSummary: queued.experienceSummary || detail.experienceSummary,
@@ -364,16 +491,15 @@ export async function getPublicQuoteRevisions(quoteId: string | number) {
   }
 }
 
-export function trackerStatus(currentIndex: number, milestoneIndex: number): 'completed' | 'active' | 'upcoming' {
-  if (milestoneIndex < currentIndex) return 'completed';
-  if (milestoneIndex === currentIndex) return 'active';
+export function trackerStatus(currentVisualIndex: number, nodeVisualIndex: number): 'completed' | 'active' | 'upcoming' {
+  if (nodeVisualIndex < currentVisualIndex) return 'completed';
+  if (nodeVisualIndex === currentVisualIndex) return 'active';
   return 'upcoming';
 }
 
-export function trackerCompletionPercent(displayIndex: number, progress = 0) {
+export function trackerCompletionPercent(displayIndex: number, _progress = 0) {
   const clamped = Math.max(0, Math.min(7, displayIndex));
-  const inner = Math.max(0, Math.min(100, Number(progress) || 0));
-  return Math.round(((clamped + inner / 100) / DESIGN_TRACKER_MILESTONES.length) * 100);
+  return Math.round((clamped / DESIGN_TRACKER_MILESTONES.length) * 100);
 }
 
 export async function resolveQuoteForLead(lead: DesignLead) {
@@ -383,8 +509,11 @@ export async function resolveQuoteForLead(lead: DesignLead) {
     quoteIdFromDesignLead(lead) ||
     Number(lead.experienceSummary?.quoteId) ||
     null;
-  const customerQuoteUrl =
-    fromLink?.customerQuoteUrl || (quoteId ? `https://design.hubinterior.com/quote/${quoteId}` : undefined);
+  const rawCustomer =
+    fromLink?.customerQuoteUrl && !String(fromLink.customerQuoteUrl).includes('internal=1')
+      ? String(fromLink.customerQuoteUrl)
+      : undefined;
+  const customerQuoteUrl = rawCustomer || (quoteId ? designQuoteUrl(quoteId) : undefined);
   const versions = quoteId ? await getPublicQuoteRevisions(quoteId) : await getLeadQuoteVersions(lead.id);
   const payload = quoteId ? await getPublicQuote(quoteId) : null;
   return { quoteId, customerQuoteUrl, versions, payload };

@@ -15,6 +15,7 @@ import {
   ACTION_CARDS,
   DEFAULT_PAYMENT_SUMMARY,
 } from './clientData';
+import { resolveDesignTracker } from '@/lib/api/design-module-client';
 
 interface RawErpData {
   lead?: any;
@@ -60,163 +61,6 @@ function sanitizeString(raw?: string): string | null {
   }
 
   return raw.trim();
-}
-
-/**
- * Convert internal CRM stages into the 8 design milestones from DesignModulephase1
- * (with KT TRANSFER replaced by BOOKING)
- */
-function getAestheticClientMilestones(
-  stageName?: string,
-  subStageName?: string,
-  totalPaidCumulative?: number,
-  totalPayableAmount?: number
-): {
-  currentStage: string;
-  stepIndex: number;
-  completionPercentage: number;
-  nextMilestone: string;
-} {
-  const s = (stageName || '').toLowerCase();
-  const sub = (subStageName || '').toLowerCase();
-  const combined = `${s} ${sub}`;
-
-  if (combined.includes('pre 10')) {
-    return {
-      currentStage: 'KT TRANSFER',
-      stepIndex: 0,
-      completionPercentage: 8,
-      nextMilestone: 'D1 SITE MEASUREMENT',
-    };
-  }
-
-  // Check if already paid 60% or more (Push to production phase)
-  if (totalPaidCumulative && totalPayableAmount && totalPaidCumulative >= totalPayableAmount * 0.58) {
-    return {
-      currentStage: 'PUSH TO PRODUCTION',
-      stepIndex: 7,
-      completionPercentage: 72,
-      nextMilestone: 'FACTORY DISPATCH',
-    };
-  }
-
-  // 8. PUSH TO PRODUCTION
-  if (
-    combined.includes('push to prod') ||
-    combined.includes('p2p') ||
-    combined.includes('ready prod') ||
-    combined.includes('in production')
-  ) {
-    return {
-      currentStage: 'PUSH TO PRODUCTION',
-      stepIndex: 7,
-      completionPercentage: 100,
-      nextMilestone: 'PRODUCTION IN PROGRESS',
-    };
-  }
-
-  // 7. 40% PAYMENT
-  if (
-    combined.includes('40%') ||
-    combined.includes('sign off') ||
-    combined.includes('signoff') ||
-    combined.includes('final design freeze')
-  ) {
-    return {
-      currentStage: '40% PAYMENT',
-      stepIndex: 6,
-      completionPercentage: 88,
-      nextMilestone: 'PUSH TO PRODUCTION',
-    };
-  }
-
-  // 6. DQC2 (Material selection / finishes)
-  if (
-    combined.includes('dqc2') ||
-    combined.includes('dqc 2') ||
-    combined.includes('material') ||
-    combined.includes('laminate')
-  ) {
-    return {
-      currentStage: 'DQC2',
-      stepIndex: 5,
-      completionPercentage: 75,
-      nextMilestone: '40% PAYMENT',
-    };
-  }
-
-  // 5. D2 SITE MASKING
-  if (combined.includes('d2') || combined.includes('masking')) {
-    return {
-      currentStage: 'D2 SITE MASKING',
-      stepIndex: 4,
-      completionPercentage: 63,
-      nextMilestone: 'DQC2',
-    };
-  }
-
-  // 4. 10% PAYMENT (e.g. DesignModule '10-20%', '10% PAYMENT', '10 - 20%')
-  if (
-    combined.includes('10%') ||
-    combined.includes('10-20') ||
-    combined.includes('10 - 20') ||
-    combined.includes('10_20') ||
-    combined.includes('ten percent') ||
-    combined.includes('advance payment') ||
-    (!combined.includes('pre 10') && combined.includes('10') && combined.includes('20'))
-  ) {
-    return {
-      currentStage: '10% PAYMENT',
-      stepIndex: 3,
-      completionPercentage: 24,
-      nextMilestone: 'D2 SITE MASKING',
-    };
-  }
-
-  // 3. DQC1 (First Cut Design & Quotation Discussion)
-  // Booked leads with quotation in progress / design meetings
-  if (
-    combined.includes('dqc1') ||
-    combined.includes('dqc 1') ||
-    combined.includes('first cut') ||
-    combined.includes('quote') ||
-    combined.includes('experience & design') ||
-    combined.includes('decision') ||
-    combined.includes('booking done') ||
-    combined.includes('closed') ||
-    combined.includes('install')
-  ) {
-    return {
-      currentStage: 'DQC1',
-      stepIndex: 2,
-      completionPercentage: 38,
-      nextMilestone: '10% PAYMENT',
-    };
-  }
-
-  // 2. D1 SITE MEASUREMENT (Site measurement visit)
-  if (
-    combined.includes('d1') ||
-    combined.includes('measurement') ||
-    combined.includes('mmt') ||
-    combined.includes('site visit') ||
-    combined.includes('token done')
-  ) {
-    return {
-      currentStage: 'D1 SITE MEASUREMENT',
-      stepIndex: 1,
-      completionPercentage: 25,
-      nextMilestone: 'DQC1',
-    };
-  }
-
-  // 1. BOOKING (Initial Kickoff)
-  return {
-    currentStage: 'BOOKING',
-    stepIndex: 0,
-    completionPercentage: 12,
-    nextMilestone: 'D1 SITE MEASUREMENT',
-  };
 }
 
 /**
@@ -322,45 +166,20 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
   }
 
   // 2. Stage calculation based on CRM stage and payments
-  const rawStage =
-    lead.currentMilestoneName ||
-    lead.stage?.milestoneStage ||
-    lead.stage?.stage ||
-    lead.project_stage ||
-    lead.projectStage ||
-    '';
-
-  const rawSubStage =
-    lead.stage?.milestoneSubStage ||
-    lead.substage ||
-    'In Progress';
-
-  const trackerNames = [
-    'KT TRANSFER',
-    'D1 SITE MEASUREMENT',
-    'DQC1',
-    '10% PAYMENT',
-    'D2 SITE MASKING',
-    'DQC2',
-    '40% PAYMENT',
-    'PUSH TO PRODUCTION',
-  ];
-  const mapped = getAestheticClientMilestones(rawStage, rawSubStage, alreadyPaid, totalQuoteValue);
-  const displayIndex =
-    typeof lead.displayMilestoneIndex === 'number'
-      ? Number(lead.displayMilestoneIndex)
-      : trackerNames.findIndex((n) => n === String(lead.currentMilestoneName || '').toUpperCase());
-  const currentStage =
-    (displayIndex >= 0 ? trackerNames[displayIndex] : null) ||
-    (lead.currentMilestoneName as string) ||
-    mapped.currentStage;
-  const stepIndex = displayIndex >= 0 ? displayIndex : mapped.stepIndex;
-  const completionPercentage =
-    displayIndex >= 0
-      ? Math.round(((displayIndex + Number(lead.currentMilestoneProgress || 0) / 100) / trackerNames.length) * 100)
-      : mapped.completionPercentage;
-  const nextMilestone =
-    displayIndex >= 0 ? trackerNames[displayIndex + 1] || 'PRODUCTION IN PROGRESS' : mapped.nextMilestone;
+  const hasDesignTracker =
+    lead.currentMilestoneIndex !== undefined &&
+    lead.currentMilestoneIndex !== null &&
+    String(lead.currentMilestoneIndex) !== '';
+  const tracker = resolveDesignTracker({
+    currentMilestoneIndex: hasDesignTracker ? Number(lead.currentMilestoneIndex) : undefined,
+    currentMilestoneName: lead.currentMilestoneName,
+    currentMilestoneProgress: lead.currentMilestoneProgress,
+    taskCompletions: Array.isArray(lead.taskCompletions) ? lead.taskCompletions : [],
+  });
+  const currentStage = tracker.currentName;
+  const stepIndex = tracker.visualIndex;
+  const completionPercentage = tracker.overallPercent;
+  const nextMilestone = tracker.nextName;
 
   // Targets based on official milestones
   const twentyPercentTarget =
@@ -502,6 +321,7 @@ export function mapErpToDashboard(raw: RawErpData, fallbackLeadId = ''): ClientD
 
     if (idx < stepIndex) {
       status = 'completed';
+      dateOrStatus = 'COMPLETED';
     } else if (idx === stepIndex) {
       status = 'in_progress';
       dateOrStatus = 'IN PROGRESS';

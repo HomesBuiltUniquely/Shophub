@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import HubLogo from '@/components/brand/HubLogo';
 
 function LoginForm() {
   const router = useRouter();
@@ -44,20 +45,7 @@ function LoginForm() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-[#FAF7F2]">
       <aside className="hidden lg:flex flex-col justify-between bg-black text-white p-12">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg grid place-items-center">
-              <div className="grid grid-cols-2 gap-0.5">
-                <span className="w-2.5 h-2.5 bg-black" />
-                <span className="w-2.5 h-2.5 bg-black" />
-                <span className="w-2.5 h-2.5 bg-black" />
-                <span className="w-2.5 h-2.5 bg-black" />
-              </div>
-            </div>
-            <div>
-              <div className="font-bold text-lg leading-tight">Offerings Pro</div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">ShopHub</div>
-            </div>
-          </div>
+          <HubLogo height={32} />
           <h1 className="mt-16 text-4xl font-extrabold tracking-tight leading-tight">
             Sign in with your account
             <span className="block text-gray-400 font-semibold mt-3 text-xl">
@@ -72,6 +60,9 @@ function LoginForm() {
 
       <main className="flex items-center justify-center p-6 sm:p-10">
         <form onSubmit={onSubmit} className="w-full max-w-md bg-white rounded-3xl border border-black/5 shadow-sm p-8">
+          <div className="mb-6 lg:hidden">
+            <HubLogo height={32} />
+          </div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Sign in</p>
           <h2 className="mt-2 text-2xl font-extrabold text-gray-950">Welcome back</h2>
           <p className="mt-1 text-sm text-gray-500">Enter your username or email and password to continue.</p>

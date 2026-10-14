@@ -66,7 +66,15 @@ export async function resolveClientUser(request: NextRequest): Promise<ResolvedC
       if (live?.id) {
         dmLead = live;
         leadId = String(live.id);
-        if (userRow?.uuid && String(userRow.lead_id || '') !== leadId) {
+        const nameHit = [live.projectName, live.intakeCustomerName].some((n) => {
+          const a = String(fullName || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+          const b = String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+          return a && b && (a === b || a.startsWith(b) || b.startsWith(a));
+        });
+        const phoneHit =
+          phone &&
+          String(live.contactNo || '').replace(/\D/g, '').slice(-10) === String(phone).replace(/\D/g, '').slice(-10);
+        if (userRow?.uuid && String(userRow.lead_id || '') !== leadId && (nameHit || phoneHit || !userRow.lead_id)) {
           await pool.query('UPDATE user SET lead_id = ? WHERE uuid = ?', [leadId, userRow.uuid]);
         }
       }

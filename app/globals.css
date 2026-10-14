@@ -11,6 +11,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-manrope);
   --font-serif: var(--font-manrope);
+  --font-mono: var(--font-manrope);
 }
 
 html {
@@ -32,6 +33,11 @@ body {
   font-style: normal;
 }
 
-.font-serif {
+.font-serif,
+.font-mono,
+button,
+input,
+select,
+textarea {
   font-family: "Manrope", sans-serif;
 }

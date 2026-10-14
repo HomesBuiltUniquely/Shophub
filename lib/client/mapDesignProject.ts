@@ -1,7 +1,6 @@
 import {
   DESIGN_TRACKER_MILESTONES,
-  displayIndexFromApi,
-  trackerCompletionPercent,
+  resolveDesignTracker,
   trackerStatus,
   type DesignLead,
 } from '@/lib/api/design-module-client';
@@ -25,9 +24,10 @@ export function mapDesignLeadToProjectPage(
     quoteUrl?: string;
   }
 ): ProjectPageData {
-  const currentIndex = displayIndexFromApi(lead.currentMilestoneIndex, lead.currentMilestoneName);
-  const currentName = lead.currentMilestoneName || DESIGN_TRACKER_MILESTONES[currentIndex].name;
-  const progress = trackerCompletionPercent(currentIndex, Number(lead.currentMilestoneProgress || 0));
+  const tracker = resolveDesignTracker(lead);
+  const currentIndex = tracker.visualIndex;
+  const currentName = tracker.currentName;
+  const progress = tracker.overallPercent;
 
   const timelineMilestones: ProjectTimelineMilestone[] = DESIGN_TRACKER_MILESTONES.map((milestone) => {
     const status = trackerStatus(currentIndex, milestone.index);
@@ -67,7 +67,7 @@ export function mapDesignLeadToProjectPage(
       extras?.propertyTitle ||
       `${lead.intakeConfiguration || 'Home'} • ${lead.intakePropertyLocation || 'Bangalore'}`,
     currentPhaseTitle: currentName,
-    overallProgressPercentage: Math.max(progress, currentIndex === 0 ? 8 : progress),
+    overallProgressPercentage: progress,
     sitePhotos: extras?.sitePhotos || [],
     readinessItems,
     nextBigStep: {

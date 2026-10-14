@@ -34,10 +34,10 @@ export default function ClientSidebar() {
     <aside className="w-64 bg-[#FAF7F2] flex flex-col h-screen fixed left-0 top-0 z-30 border-r border-[#EFECE6]/60 select-none overflow-y-auto">
       {/* Brand Header */}
       <div className="px-7 pt-7 pb-6">
-        <Link href="/client" className="inline-block">
+        <Link href="/client" className="inline-flex flex-col items-start gap-1">
           <HubLogo />
-          <div className="text-[11px] font-bold text-gray-500 tracking-[0.18em] uppercase mt-0.5">
-            CLIENT PORTAL
+          <div className="text-[10px] font-bold text-gray-400 tracking-[0.22em] uppercase">
+            Client portal
           </div>
         </Link>
       </div>

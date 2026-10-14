@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
+import HubLogo from '@/components/brand/HubLogo';
 
 const menuItems = [
   { name: 'DASHBOARD', href: '/dashboard', icon: 'dashboard' },
@@ -28,21 +29,9 @@ export default function Sidebar() {
   return (
     <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0">
       {/* Logo/Brand */}
-      <Link href="/offerings" className="px-4 py-6 bg-black block hover:bg-neutral-950 transition-colors">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="7" height="7" fill="black"/>
-              <rect x="14" y="3" width="7" height="7" fill="black"/>
-              <rect x="3" y="14" width="7" height="7" fill="black"/>
-              <rect x="14" y="14" width="7" height="7" fill="black"/>
-            </svg>
-          </div>
-          <div>
-            <div className="text-white font-bold text-base">Offerings Pro</div>
-            <div className="text-gray-400 text-[10px] uppercase tracking-wide">Enterprise Edition</div>
-          </div>
-        </div>
+      <Link href="/offerings" className="px-4 py-6 bg-white block border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <HubLogo height={26} />
+        <div className="text-gray-400 text-[10px] uppercase tracking-wide mt-1.5">Enterprise Edition</div>
       </Link>
 
       {/* Navigation */}
