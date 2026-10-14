@@ -10,7 +10,9 @@ interface QuoteSidebarProps {
   onClearQuote: () => void;
   onClose: () => void;
   isAdmin?: boolean;
+  canEditDiscount?: boolean;
   onUpdateDiscount?: (newPct: number) => void;
+  onUpdateFreight?: (newFreightPct: number) => void;
 }
 
 export default function QuoteSidebar({
@@ -20,10 +22,15 @@ export default function QuoteSidebar({
   onClearQuote,
   onClose,
   isAdmin = false,
+  canEditDiscount = false,
   onUpdateDiscount,
+  onUpdateFreight,
 }: QuoteSidebarProps) {
+  const allowDiscountEdit = Boolean(canEditDiscount || isAdmin);
   const [isEditingDiscount, setIsEditingDiscount] = React.useState(false);
   const [customDiscountInput, setCustomDiscountInput] = React.useState('');
+  const [isEditingFreight, setIsEditingFreight] = React.useState(false);
+  const [customFreightInput, setCustomFreightInput] = React.useState('');
   const items = quote?.items || [];
 
   // Group items by room
@@ -230,7 +237,7 @@ export default function QuoteSidebar({
                   : '₹0.00'}
               </span>
 
-              {isAdmin && onUpdateDiscount && (
+              {allowDiscountEdit && onUpdateDiscount && (
                 <button
                   type="button"
                   onClick={() => setIsEditingDiscount(!isEditingDiscount)}
@@ -242,8 +249,8 @@ export default function QuoteSidebar({
             </div>
           </div>
 
-          {/* Discount Control Panel (Admin Only) */}
-          {isAdmin && isEditingDiscount && onUpdateDiscount && (
+          {/* Discount Control Panel (Admin, CRM, Designer) */}
+          {allowDiscountEdit && isEditingDiscount && onUpdateDiscount && (
             <div className="mt-2.5 p-2.5 bg-white border border-gray-200 rounded-lg shadow-xs space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
@@ -314,14 +321,96 @@ export default function QuoteSidebar({
           )}
         </div>
 
-        {quote?.estimatedFreight !== undefined && quote.estimatedFreight > 0 && (
-          <div className="flex items-center justify-between text-gray-600">
-            <span>Estimated Freight</span>
-            <span className="font-bold text-gray-900">
-              ₹{quote.estimatedFreight.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+        {/* Dynamic Estimated Freight Section */}
+        <div className="pt-1 pb-1">
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <span>Estimated Freight ({quote?.freightPercentage ?? 2.5}%)</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900">
+                ₹{(quote?.estimatedFreight ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              {allowDiscountEdit && onUpdateFreight && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingFreight(!isEditingFreight)}
+                  className="text-[10px] font-semibold text-black hover:text-gray-700 underline underline-offset-2 ml-1"
+                >
+                  {isEditingFreight ? 'Close' : 'Edit'}
+                </button>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Freight Control Panel (Admin, CRM, Designer) */}
+          {allowDiscountEdit && isEditingFreight && onUpdateFreight && (
+            <div className="mt-2.5 p-2.5 bg-white border border-gray-200 rounded-lg shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Freight Rate (% of Net Total)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateFreight(2.5);
+                    setIsEditingFreight(false);
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-black font-medium"
+                >
+                  Reset (2.5%)
+                </button>
+              </div>
+
+              {/* Preset percentage pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[1, 2, 2.5, 3, 5].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      onUpdateFreight(preset);
+                      setIsEditingFreight(false);
+                    }}
+                    className={`px-2.5 py-1 text-[10px] font-semibold rounded-md border transition-colors ${
+                      (quote?.freightPercentage ?? 2.5) === preset
+                        ? 'bg-black text-white border-black'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {preset}%
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom percentage input */}
+              <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="Custom %"
+                  value={customFreightInput}
+                  onChange={(e) => setCustomFreightInput(e.target.value)}
+                  className="w-20 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const parsed = parseFloat(customFreightInput);
+                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+                      onUpdateFreight(parsed);
+                      setCustomFreightInput('');
+                      setIsEditingFreight(false);
+                    }
+                  }}
+                  className="px-2.5 py-1 text-[10px] font-bold bg-black text-white rounded hover:bg-gray-800 transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Regional logistics surcharges note */}
         <div className="mt-3 bg-gray-900 text-white text-[10px] p-2.5 rounded-lg flex items-center gap-2 shadow-xs">
