@@ -33,7 +33,7 @@ function ClientOfferingDetailLoader() {
 function ClientOfferingDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const prodId = searchParams.get('id') || '1';
+  const prodId = searchParams.get('id') || '';
 
   const {
     product,
@@ -186,7 +186,12 @@ function ClientOfferingDetailContent() {
             </div>
           </div>
 
-          {isLoading && !product ? (
+          {!prodId ? (
+            <div className="bg-white rounded-[24px] border border-black/[0.04] px-8 py-16 text-center">
+              <h3 className="text-base font-extrabold text-gray-950">Offering not found</h3>
+              <p className="text-sm text-gray-500 mt-2">Open this page from Offerings, using a product your designer saved for you.</p>
+            </div>
+          ) : isLoading && !product ? (
             <ClientOfferingDetailLoader />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

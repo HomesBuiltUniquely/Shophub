@@ -1,10 +1,13 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import type { OfferingsSubmittedOrder } from '@/lib/client/offerings-order';
+import { readJsonCollection, upsertJsonRecord } from '@/lib/db/json-collection';
 
 const FILE = path.join(process.cwd(), 'data', 'offerings-orders.json');
+const COLLECTION = 'offerings_orders';
+const useMysql = Boolean(process.env.VERCEL);
 
-async function readAll(): Promise<OfferingsSubmittedOrder[]> {
+async function readFileAll(): Promise<OfferingsSubmittedOrder[]> {
   try {
     const raw = await readFile(FILE, 'utf8');
     const parsed = JSON.parse(raw);
@@ -14,15 +17,32 @@ async function readAll(): Promise<OfferingsSubmittedOrder[]> {
   }
 }
 
-async function writeAll(rows: OfferingsSubmittedOrder[]) {
-  await mkdir(path.dirname(FILE), { recursive: true });
-  await writeFile(FILE, JSON.stringify(rows, null, 2), 'utf8');
+async function readAll(): Promise<OfferingsSubmittedOrder[]> {
+  if (useMysql) {
+    try {
+      return await readJsonCollection<OfferingsSubmittedOrder>(COLLECTION);
+    } catch (err) {
+      console.error('[offerings-order-archive] MySQL read failed:', err);
+      return [];
+    }
+  }
+  return readFileAll();
 }
 
 export async function createOfferingsOrder(order: OfferingsSubmittedOrder) {
-  const all = await readAll();
-  all.unshift(order);
-  await writeAll(all);
+  if (useMysql) {
+    await upsertJsonRecord(COLLECTION, order);
+    return order;
+  }
+  try {
+    const all = await readFileAll();
+    all.unshift(order);
+    await mkdir(path.dirname(FILE), { recursive: true });
+    await writeFile(FILE, JSON.stringify(all, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[offerings-order-archive] File write failed, using MySQL:', err);
+    await upsertJsonRecord(COLLECTION, order);
+  }
   return order;
 }
 
@@ -51,35 +71,29 @@ export async function listOfferingsOrders(filters?: {
     const orderCustName = String(order.customerName || '').toLowerCase();
     const orderQuoteNum = String(order.quoteNumber || '').toLowerCase();
 
-    // If email filter is specified (e.g. For client users)
     if (email && orderEmail === email) return true;
-
-    // If leadId filter is specified
     if (leadId && (orderLeadId === leadId || orderLeadId.includes(leadId) || leadId.includes(orderLeadId))) {
       return true;
     }
-
-    // If clientId filter is specified (flexible BLR- prefix match)
-    if (clientId && (
-      orderClientId === clientId ||
-      orderCleanClientId === cleanClientId ||
-      orderClientId.includes(cleanClientId) ||
-      clientId.includes(orderCleanClientId)
-    )) {
+    if (
+      clientId &&
+      (orderClientId === clientId ||
+        orderCleanClientId === cleanClientId ||
+        orderClientId.includes(cleanClientId) ||
+        clientId.includes(orderCleanClientId))
+    ) {
       return true;
     }
-
-    // If generic search query is provided
-    if (search && (
-      orderCustName.includes(search) ||
-      orderEmail.includes(search) ||
-      orderQuoteNum.includes(search) ||
-      orderClientId.includes(search) ||
-      orderLeadId.includes(search)
-    )) {
+    if (
+      search &&
+      (orderCustName.includes(search) ||
+        orderEmail.includes(search) ||
+        orderQuoteNum.includes(search) ||
+        orderClientId.includes(search) ||
+        orderLeadId.includes(search))
+    ) {
       return true;
     }
-
     return false;
   });
 }

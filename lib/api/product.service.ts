@@ -127,6 +127,9 @@ async function getProductFromLocalApi(prodId: number | string): Promise<ProdData
 }
 
 export const getProductById = async (prodId: number | string): Promise<ProdDataResDTO | null> => {
+  const local = await getProductFromLocalApi(prodId);
+  if (local) return local;
+
   try {
     const response = await apiClient.get<ProdDataResDTO>(`/products/getProduct/${prodId}`, {
       validateStatus: () => true,
@@ -135,10 +138,10 @@ export const getProductById = async (prodId: number | string): Promise<ProdDataR
       return response.data;
     }
   } catch (error: any) {
-    console.warn(`[product.service] getProductById(${prodId}) database query failed:`, error.message);
+    console.warn(`[product.service] getProductById(${prodId}) catalog query failed:`, error.message);
   }
 
-  return getProductFromLocalApi(prodId);
+  return null;
 };
 
 /**

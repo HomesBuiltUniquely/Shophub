@@ -15,13 +15,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const isClient = user.role === 'client';
 
-  const orders = await listOfferingsOrders({
-    email: isClient ? user.email : searchParams.get('email') || undefined,
-    leadId: searchParams.get('leadId') || undefined,
-    clientId: searchParams.get('clientId') || undefined,
-    search: searchParams.get('search') || undefined,
-  });
-  return NextResponse.json({ orders });
+  try {
+    const orders = await listOfferingsOrders({
+      email: isClient ? user.email : searchParams.get('email') || undefined,
+      leadId: searchParams.get('leadId') || undefined,
+      clientId: searchParams.get('clientId') || undefined,
+      search: searchParams.get('search') || undefined,
+    });
+    return NextResponse.json({ orders });
+  } catch (err) {
+    console.error('[offerings-orders GET]', err);
+    return NextResponse.json({ orders: [], error: 'Could not load orders.' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -42,32 +47,37 @@ export async function POST(request: NextRequest) {
   const clientId = body.clientId ? String(body.clientId) : undefined;
   const quote = quoteModelFromDraftItems(items, customerName);
 
-  const invoice = await createOfferingsInvoice({
-    quote,
-    customerName,
-    customerEmail,
-    ownerEmail: user.email,
-    customerCode: clientId,
-    leadId,
-    projectName: body.projectName || 'Offerings selection',
-    issuedBy: user.name,
-    source: 'client',
-    validityPeriod: '30 Days (Standard)',
-  });
+  try {
+    const invoice = await createOfferingsInvoice({
+      quote,
+      customerName,
+      customerEmail,
+      ownerEmail: user.email,
+      customerCode: clientId,
+      leadId,
+      projectName: body.projectName || 'Offerings selection',
+      issuedBy: user.name,
+      source: 'client',
+      validityPeriod: '30 Days (Standard)',
+    });
 
-  const order: OfferingsSubmittedOrder = {
-    id: `ord-${invoice.id}`,
-    createdAt: invoice.createdAt,
-    invoiceId: invoice.id,
-    quoteNumber: invoice.quoteNumber,
-    grandTotal: invoice.grandTotal,
-    items,
-    customerName,
-    customerEmail,
-    leadId,
-    clientId,
-  };
+    const order: OfferingsSubmittedOrder = {
+      id: `ord-${invoice.id}`,
+      createdAt: invoice.createdAt,
+      invoiceId: invoice.id,
+      quoteNumber: invoice.quoteNumber,
+      grandTotal: invoice.grandTotal,
+      items,
+      customerName,
+      customerEmail,
+      leadId,
+      clientId,
+    };
 
-  await createOfferingsOrder(order);
-  return NextResponse.json({ order, invoiceId: invoice.id, quoteNumber: invoice.quoteNumber });
+    await createOfferingsOrder(order);
+    return NextResponse.json({ order, invoiceId: invoice.id, quoteNumber: invoice.quoteNumber });
+  } catch (err) {
+    console.error('[offerings-orders POST]', err);
+    return NextResponse.json({ error: 'Could not submit offerings order.' }, { status: 500 });
+  }
 }

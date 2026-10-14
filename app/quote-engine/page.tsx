@@ -24,6 +24,8 @@ export interface Customer {
   phone?: string;
   company?: string;
   customerId?: string;
+  realName?: string;
+  crmLeadId?: number;
 }
 
 export interface Project {
@@ -215,6 +217,7 @@ function QuoteEngineContent() {
   // UI Feedback / Alerts
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isSavingForClient, setIsSavingForClient] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
 
   // ============================================================================
@@ -814,6 +817,47 @@ function QuoteEngineContent() {
     setIsGeneratingPdf(false);
   };
 
+  const handleSaveForClient = async () => {
+    const customer = customers.find((c) => c.id === selectedCustomerId);
+    const project = projects.find((p) => p.id === selectedProjectId);
+    if (!customer) {
+      showToast('Select a client in the left panel first.');
+      return;
+    }
+    if (!quote.items.length) {
+      showToast('Add products to the quote before saving for the client.');
+      return;
+    }
+    setIsSavingForClient(true);
+    try {
+      const res = await fetch('/api/client/saved-offerings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          customerName: customer.realName || customer.name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          clientId: customer.customerId || project?.leadId,
+          leadId:
+            project?.leadId ||
+            (project?.crmLeadId ? String(project.crmLeadId) : undefined) ||
+            (customer.crmLeadId ? String(customer.crmLeadId) : undefined),
+          items: quote.items,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not save offerings for this client.');
+      }
+      showToast(`Saved ${quote.items.length} offering(s) for ${customer.realName || customer.name}. They will see them in Client Portal → Offerings.`);
+    } catch (err) {
+      showToast((err as Error).message);
+    } finally {
+      setIsSavingForClient(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans select-none">
       {/* Toast Alert */}
@@ -926,6 +970,8 @@ function QuoteEngineContent() {
         designerMarginAmount={quote.designerMarginAmount ?? 3802.0}
         projectedProfit={quote.projectedProfit ?? 5240.0}
         onShareQuote={handleShareQuote}
+        onSaveForClient={handleSaveForClient}
+        isSavingForClient={isSavingForClient}
         onGeneratePdf={handleGeneratePdf}
         isGeneratingPdf={isGeneratingPdf}
       />

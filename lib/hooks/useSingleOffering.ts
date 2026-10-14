@@ -21,7 +21,7 @@ export interface SingleOfferingState {
  * Hook for Single Offering View
  * Dynamically loads product details for the given prodId directly from backend and database.
  */
-export function useSingleOffering(prodId: string | number = 1): SingleOfferingState {
+export function useSingleOffering(prodId: string | number = ''): SingleOfferingState {
   const [product, setProduct] = useState<ProdDataResDTO | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,11 @@ export function useSingleOffering(prodId: string | number = 1): SingleOfferingSt
   const reduxCategories = useAppSelector((state) => state.categories);
 
   const fetchData = useCallback(async () => {
-    if (!prodId) return;
+    if (!prodId) {
+      setIsLoading(false);
+      setError('No offering selected.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
