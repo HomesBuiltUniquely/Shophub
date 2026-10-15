@@ -38,9 +38,13 @@ export default function Sidebar() {
       <nav className="flex-1 p-3 pt-4">
         <ul className="space-y-0.5">
           {visibleItems.map((item) => {
+            const isCreateOffering = pathname.startsWith('/offerings/CreateOfferings');
             const isActive =
               item.href === '/offerings'
-                ? pathname === '/offerings' || pathname.startsWith('/offerings/') || pathname === '/enterprise/offerings'
+                ? !isCreateOffering &&
+                  (pathname === '/offerings' ||
+                    pathname.startsWith('/offerings/') ||
+                    pathname === '/enterprise/offerings')
                 : item.href === '/quote-engine'
                   ? pathname.startsWith('/quote-engine') || pathname.startsWith('/quote-making')
                   : item.href === '/offering-invoice'

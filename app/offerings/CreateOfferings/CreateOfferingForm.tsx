@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createProduct, updateOfferingSection } from '@/lib/api/offering-save';
+import { isUsableImageUrl } from '@/lib/media/offering-image';
+import OfferingImageUploader from '@/components/offerings/OfferingImageUploader';
 import RichTextEditor from './RichTextEditor';
 
 type TabId = 'GENERAL' | 'PRICING' | 'INVENTORY' | 'MEDIA' | 'SPECIFICATIONS' | 'SEO' | 'INTERNAL';
@@ -98,7 +100,6 @@ export default function CreateOfferingForm() {
   const [prodId, setProdId] = useState<number | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const submitInProgress = useRef(false);
-  const primaryImageRef = useRef<HTMLInputElement>(null);
   const tabIndex = TABS.indexOf(tab);
 
   const [form, setForm] = useState({
@@ -202,7 +203,7 @@ export default function CreateOfferingForm() {
           reorder_quantity: String(product.inventory?.reorder_quantity ?? ''),
           preferred_vendor: product.inventory?.sourcingLogistics?.preferred_vendor || 'IN_HOUSE',
           lead_time: Number(product.inventory?.sourcingLogistics?.lead_time) || 7,
-          primary_image: product.media?.primary_image || '',
+          primary_image: isUsableImageUrl(product.media?.primary_image) ? product.media.primary_image : '',
           gallery_images: Array.isArray(product.media?.gallery_images) && product.media.gallery_images.length
             ? [...product.media.gallery_images, '', '', '', ''].slice(0, 4)
             : prev.gallery_images,
@@ -261,7 +262,7 @@ export default function CreateOfferingForm() {
     if (!form.long_desc.trim()) items.push({ tab: 'GENERAL', label: 'Long description' });
     if (!Number(form.selling_price)) items.push({ tab: 'PRICING', label: 'Selling price' });
     if (!Number(form.cost_price)) items.push({ tab: 'PRICING', label: 'Cost price' });
-    if (!form.primary_image.trim()) items.push({ tab: 'MEDIA', label: 'Primary image' });
+    if (!isUsableImageUrl(form.primary_image)) items.push({ tab: 'MEDIA', label: 'Primary image' });
     if (!Number(form.length_cm) && !Number(form.width_cm) && !Number(form.height_cm)) {
       items.push({ tab: 'SPECIFICATIONS', label: 'Dimensions' });
     }
@@ -272,6 +273,22 @@ export default function CreateOfferingForm() {
     setForm((prev) => {
       return { ...prev, [key]: value };
     });
+  };
+
+  const persistMedia = async (primary: string, gallery: string[]) => {
+    if (prodId == null) return;
+    await updateOfferingSection({
+      prodId,
+      section: 'MEDIA',
+      sku_id: form.sku_id,
+      url_slug: form.url_slug || slugify(form.offering_name),
+      payload: {
+        primary_image: primary,
+        gallery_images: gallery.filter((item) => isUsableImageUrl(item)),
+        video_link: form.video_link,
+      },
+    });
+    setSavedAt(formatTime(new Date()));
   };
 
   const addTag = () => {
@@ -819,35 +836,18 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Primary Image</h2>
                 <p className="text-xs text-gray-500 mt-0.5">The main hero image used in search results and catalog listings.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => primaryImageRef.current?.click()}
-                className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-white py-16 text-center"
-              >
-                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full text-gray-400">
-                  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p>
-                <p className="text-xs text-gray-400 mt-1">SVG, PNG, JPG or GIF (max. 800×400px)</p>
-                {form.primary_image && <p className="mt-2 text-xs text-emerald-600">{form.primary_image}</p>}
-              </button>
-              <input
-                ref={primaryImageRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setField('primary_image', file.name);
+              <OfferingImageUploader
+                value={form.primary_image}
+                onUploaded={async (url) => {
+                  setField('primary_image', url);
+                  await persistMedia(url, form.gallery_images);
                 }}
               />
               <div>
                 <label className={labelCls}>Primary Image URL</label>
                 <input
                   className={inputCls}
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="https://…"
                   value={form.primary_image}
                   onChange={(e) => setField('primary_image', e.target.value)}
                 />
@@ -860,18 +860,17 @@ export default function CreateOfferingForm() {
               </div>
               <div className="grid grid-cols-4 gap-3">
                 {form.gallery_images.map((img, idx) => (
-                  <button
+                  <OfferingImageUploader
                     key={idx}
-                    type="button"
-                    className="aspect-square rounded-xl border-2 border-dashed border-gray-200 bg-white text-2xl text-gray-300"
-                    onClick={() => {
+                    compact
+                    value={img}
+                    onUploaded={async (url) => {
                       const next = [...form.gallery_images];
-                      next[idx] = next[idx] ? '' : `gallery-${idx + 1}.jpg`;
+                      next[idx] = url;
                       setField('gallery_images', next);
+                      await persistMedia(form.primary_image, next);
                     }}
-                  >
-                    {img ? '✓' : '+'}
-                  </button>
+                  />
                 ))}
               </div>
             </section>

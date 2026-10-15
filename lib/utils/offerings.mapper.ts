@@ -5,6 +5,7 @@
 
 import { Product, PrimaryCategory, SecondaryCategory } from '../types/api.types';
 import { OfferingResponse } from '../types/offerings/offering.types';
+import { offeringImageUrl } from '@/lib/media/offering-image';
 
 /**
  * Map a Product from database or category API to OfferingResponse
@@ -74,14 +75,27 @@ export function mapProductToOffering(
         preferred_vendor: product.inventory?.sourcingLogistics?.preferred_vendor ?? undefined,
       },
     },
-    media: product.media || {
-      primary_image: product.image_url || product.primary_image || '',
-      gallery_images: [],
+    media: {
+      ...(product.media || {}),
+      primary_image:
+        offeringImageUrl(
+          product.media?.primary_image,
+          product.image_url,
+          product.primary_image,
+          product.image
+        ) || '',
+      gallery_images: product.media?.gallery_images || [],
     },
     product: {
       category: product.category || 'FURNITURE',
       offering_name: offeringName,
-      image_url: product.media?.primary_image || product.image_url || product.primary_image || product.image || '',
+      image_url:
+        offeringImageUrl(
+          product.media?.primary_image,
+          product.image_url,
+          product.primary_image,
+          product.image
+        ) || '',
     },
     internal: {
       visibility_status: {
