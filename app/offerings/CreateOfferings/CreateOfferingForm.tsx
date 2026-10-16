@@ -6,12 +6,13 @@ import { createProduct, updateOfferingSection } from '@/lib/api/offering-save';
 import { isUsableImageUrl } from '@/lib/media/offering-image';
 import OfferingImageUploader from '@/components/offerings/OfferingImageUploader';
 import RichTextEditor from './RichTextEditor';
+import { getAllPrimaryCategories, type PrimaryCategory } from '@/lib/api/category.service';
 
 type TabId = 'GENERAL' | 'PRICING' | 'INVENTORY' | 'MEDIA' | 'SPECIFICATIONS' | 'SEO' | 'INTERNAL';
 
 const TABS: TabId[] = ['GENERAL', 'PRICING', 'INVENTORY', 'MEDIA', 'SPECIFICATIONS', 'SEO', 'INTERNAL'];
 
-const CATEGORIES = ['FURNITURE', 'LIGHTING', 'DECOR', 'BEDDING', 'KITCHEN', 'STORAGE', 'OUTDOOR', 'RUGS', 'WALL_ART'];
+const FALLBACK_CATEGORIES = ['FURNITURE', 'LIGHTING', 'DECOR', 'BEDDING', 'KITCHEN', 'STORAGE', 'OUTDOOR', 'RUGS', 'WALL_ART'];
 
 const labelCls =
   'block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5';
@@ -90,6 +91,7 @@ export default function CreateOfferingForm() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<TabId>('GENERAL');
   const [brands, setBrands] = useState<{ brand_id: number; brand_name: string }[]>([]);
+  const [categories, setCategories] = useState<PrimaryCategory[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
   const [roleInput, setRoleInput] = useState('');
@@ -165,6 +167,29 @@ export default function CreateOfferingForm() {
       .then((data) => {
         if (data.success && Array.isArray(data.brands) && data.brands.length > 0) {
           setBrands(data.brands);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // Fetch dynamic primary categories from catalog
+  useEffect(() => {
+    getAllPrimaryCategories()
+      .then((cats) => {
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats);
+          setForm((prev) => {
+            const match = cats.find(
+              (c) => c.primaryCategoryName?.toLowerCase() === prev.category?.toLowerCase()
+            );
+            if (match) {
+              return { ...prev, category: match.primaryCategoryName };
+            }
+            if (!prev.category || prev.category === 'FURNITURE') {
+              return { ...prev, category: cats[0].primaryCategoryName };
+            }
+            return prev;
+          });
         }
       })
       .catch(() => undefined);
@@ -591,11 +616,20 @@ export default function CreateOfferingForm() {
                 <div>
                   <label className={labelCls}>Category</label>
                   <select className={inputCls} value={form.category} onChange={(e) => setField('category', e.target.value)}>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c.charAt(0) + c.slice(1).toLowerCase().replace('_', ' ')}
-                      </option>
-                    ))}
+                    {categories.length > 0
+                      ? categories.map((c) => {
+                          const catName = c.primaryCategoryName || String(c);
+                          return (
+                            <option key={c.primaryCategoryId ?? catName} value={catName}>
+                              {catName}
+                            </option>
+                          );
+                        })
+                      : FALLBACK_CATEGORIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c.charAt(0) + c.slice(1).toLowerCase().replace('_', ' ')}
+                          </option>
+                        ))}
                   </select>
                 </div>
                 <div>
