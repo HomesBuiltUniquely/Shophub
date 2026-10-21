@@ -125,7 +125,7 @@ export default function QuoteCatalogSection({
             const isPerPiece = item.offering_name.toLowerCase().includes('pulls');
             const imageUrl = item.media?.primary_image?.startsWith('http')
               ? item.media.primary_image
-              : '';
+              : null;
 
             return (
               <div
@@ -134,17 +134,30 @@ export default function QuoteCatalogSection({
                 className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3.5 hover:shadow-md transition-shadow cursor-pointer group"
               >
                 <div className="w-16 h-16 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                  <img
-                    src={imageUrl}
-                    alt={item.offering_name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt={item.offering_name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 text-gray-300">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-bold text-gray-900 truncate">{item.offering_name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-gray-900 truncate">{item.offering_name}</h3>
+                    {item.sku_id && (
+                      <span className="text-[9px] font-mono font-medium text-gray-500 bg-gray-100 px-1 rounded shrink-0">{item.sku_id}</span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-gray-500 truncate mb-1">{item.short_desc || 'Frequently used together'}</p>
                   <div className="text-xs font-bold text-gray-900">
                     ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -171,7 +184,7 @@ export default function QuoteCatalogSection({
               const price = prod.pricing?.selling_price ?? 0;
               const imageUrl = prod.media?.primary_image?.startsWith('http')
                 ? prod.media.primary_image
-                : '';
+                : null;
               const isLeadTime = prod.offering_name.toLowerCase().includes('pendant') || (prod.lead_time && prod.lead_time > 2);
 
               return (
@@ -192,20 +205,33 @@ export default function QuoteCatalogSection({
                       </span>
                     )}
 
-                    <img
-                      src={imageUrl}
-                      alt={prod.offering_name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={prod.offering_name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-16 h-16 text-gray-300">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
 
                   {/* Details */}
                   <div className="p-3.5 flex flex-col flex-1 justify-between">
                     <div>
-                      <h3 className="text-xs font-bold text-gray-900 line-clamp-1">{prod.offering_name}</h3>
+                      <div className="flex items-start justify-between gap-1">
+                        <h3 className="text-xs font-bold text-gray-900 line-clamp-1">{prod.offering_name}</h3>
+                        {prod.sku_id && (
+                          <span className="text-[9px] font-mono font-medium text-gray-500 bg-gray-100 px-1 py-0.5 rounded shrink-0">{prod.sku_id}</span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
                         {prod.short_desc || prod.category}
                       </p>

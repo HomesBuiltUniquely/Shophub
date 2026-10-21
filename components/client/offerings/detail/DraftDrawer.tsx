@@ -163,7 +163,6 @@ export default function DraftDrawer({ isOpen, onClose, refreshKey = 0 }: DraftDr
                         {/* Info */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="text-xs font-bold text-gray-950 leading-snug truncate">{item.offeringName}</div>
-                          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{item.sku}</div>
                           {item.designerNote && (
                             <div className="text-[10px] text-[#65783A] font-semibold bg-[#65783A]/8 border border-[#65783A]/15 px-2 py-0.5 rounded-md inline-block max-w-full truncate">
                               {item.designerNote}

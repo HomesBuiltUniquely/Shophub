@@ -42,7 +42,6 @@ function OfferingCard({ offering }: { offering: SavedOfferingRow }) {
         <h3 className="text-base font-extrabold text-gray-950 tracking-tight line-clamp-2">
           {offering.offeringName}
         </h3>
-        <p className="text-xs text-gray-500 mt-1 font-mono">{offering.skuId || 'SKU pending'}</p>
         <div className="mt-4 text-lg font-black text-gray-950">
           ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </div>

@@ -485,7 +485,7 @@ function OfferingInvoiceContent() {
                                           {item.offeringName}
                                         </div>
                                         <div className="text-xs text-gray-500 mt-0.5">
-                                          {item.sku} · Qty {item.quantity || 1}
+                                          Qty {item.quantity || 1}
                                         </div>
                                       </div>
                                     </div>

@@ -7,6 +7,7 @@ import { isUsableImageUrl } from '@/lib/media/offering-image';
 import OfferingImageUploader from '@/components/offerings/OfferingImageUploader';
 import RichTextEditor from './RichTextEditor';
 import { getAllPrimaryCategories, type PrimaryCategory } from '@/lib/api/category.service';
+import { generateSku } from '@/lib/utils/sku';
 
 type TabId = 'GENERAL' | 'PRICING' | 'INVENTORY' | 'MEDIA' | 'SPECIFICATIONS' | 'SEO' | 'INTERNAL';
 
@@ -108,7 +109,7 @@ export default function CreateOfferingForm() {
     offering_name: '',
     offering_type: 'PRODUCT',
     sku_id: '',
-    category: 'FURNITURE',
+    category: '',
     brand_id: 5,
     brand: 'Hub Homes Royale',
     tags: ['chair', 'armchair', 'lounge', 'luxury', 'living-room'] as string[],
@@ -179,14 +180,13 @@ export default function CreateOfferingForm() {
         if (Array.isArray(cats) && cats.length > 0) {
           setCategories(cats);
           setForm((prev) => {
-            const match = cats.find(
-              (c) => c.primaryCategoryName?.toLowerCase() === prev.category?.toLowerCase()
-            );
-            if (match) {
-              return { ...prev, category: match.primaryCategoryName };
-            }
-            if (!prev.category || prev.category === 'FURNITURE') {
-              return { ...prev, category: cats[0].primaryCategoryName };
+            if (prev.category) {
+              const match = cats.find(
+                (c) => c.primaryCategoryName?.toLowerCase() === prev.category?.toLowerCase()
+              );
+              if (match) {
+                return { ...prev, category: match.primaryCategoryName };
+              }
             }
             return prev;
           });
@@ -282,6 +282,7 @@ export default function CreateOfferingForm() {
   const incomplete = useMemo(() => {
     const items: { tab: TabId; label: string }[] = [];
     if (!form.offering_name.trim()) items.push({ tab: 'GENERAL', label: 'Offering name' });
+    if (!form.category.trim()) items.push({ tab: 'GENERAL', label: 'Category' });
     if (!form.sku_id.trim()) items.push({ tab: 'GENERAL', label: 'SKU' });
     if (!form.short_desc.trim()) items.push({ tab: 'GENERAL', label: 'Short description' });
     if (!form.long_desc.trim()) items.push({ tab: 'GENERAL', label: 'Long description' });
@@ -452,8 +453,8 @@ export default function CreateOfferingForm() {
 
   const submit = async (publish: boolean) => {
     if (submitInProgress.current) return;
-    if (!form.offering_name.trim() || !form.sku_id.trim()) {
-      setError('Offering name and SKU are required before you can save.');
+    if (!form.offering_name.trim() || !form.category.trim() || !form.sku_id.trim()) {
+      setError('Offering name and Category are required before you can save.');
       setTab('GENERAL');
       return;
     }
@@ -597,12 +598,26 @@ export default function CreateOfferingForm() {
                 </div>
                 <div>
                   <label className={labelCls}>SKU / Identifier</label>
-                  <input
-                    className={inputCls}
-                    placeholder="EXE-DK-2024"
-                    value={form.sku_id}
-                    onChange={(e) => setField('sku_id', e.target.value)}
-                  />
+                  <div className="relative">
+                    <input
+                      readOnly
+                      tabIndex={-1}
+                      className={`${inputCls} bg-gray-100/80 font-mono text-gray-800 pr-28 cursor-not-allowed select-all focus:ring-0 focus:border-gray-200`}
+                      placeholder="Select category to generate SKU"
+                      value={form.sku_id}
+                      title={form.sku_id ? "SKU is automatically generated and cannot be manually edited." : "Select a category below to generate the SKU."}
+                    />
+                    {form.sku_id ? (
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded select-none flex items-center gap-1">
+                        <span>🔒</span>
+                        <span>Auto-generated</span>
+                      </span>
+                    ) : (
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded select-none">
+                        Pending category
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -615,7 +630,27 @@ export default function CreateOfferingForm() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Category</label>
-                  <select className={inputCls} value={form.category} onChange={(e) => setField('category', e.target.value)}>
+                  <select
+                    className={inputCls}
+                    value={form.category}
+                    onChange={(e) => {
+                      const newCategory = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        category: newCategory,
+                        sku_id: prodId
+                          ? prev.sku_id
+                          : newCategory
+                          ? generateSku({
+                              category: newCategory,
+                              offeringName: prev.offering_name,
+                              brand: prev.brand,
+                            })
+                          : '',
+                      }));
+                    }}
+                  >
+                    <option value="">Select a Category...</option>
                     {categories.length > 0
                       ? categories.map((c) => {
                           const catName = c.primaryCategoryName || String(c);
@@ -812,7 +847,14 @@ export default function CreateOfferingForm() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>SKU / Identifier</label>
-                  <input className={inputCls} value={form.sku_id} onChange={(e) => setField('sku_id', e.target.value)} />
+                  <input
+                    readOnly
+                    tabIndex={-1}
+                    className={`${inputCls} bg-gray-100/80 font-mono text-gray-800 cursor-not-allowed select-all focus:ring-0 focus:border-gray-200`}
+                    placeholder="Select category to generate SKU"
+                    value={form.sku_id}
+                    title={form.sku_id ? "SKU is automatically generated and cannot be manually edited." : "Select a category in General tab to generate the SKU."}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Barcode / EAN</label>

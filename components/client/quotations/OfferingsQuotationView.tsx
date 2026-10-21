@@ -181,7 +181,7 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-bold text-gray-950 truncate">{item.offeringName}</div>
                             <div className="text-[11px] text-gray-500">
-                              {item.sku} · Qty {item.quantity}
+                              Qty {item.quantity}
                             </div>
                           </div>
                           <div className="text-sm font-black text-gray-950">₹ {fmt(grandTotal)}</div>
@@ -286,7 +286,6 @@ export default function OfferingsQuotationView({ onShowToast }: OfferingsQuotati
                         {/* Info */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="text-sm font-bold text-gray-950 truncate">{item.offeringName}</div>
-                          <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{item.sku}</div>
                           {item.designerNote && (
                             <div className="text-[11px] text-[#65783A] font-semibold bg-[#65783A]/8 border border-[#65783A]/15 px-2.5 py-1 rounded-lg inline-block max-w-full truncate">
                               Note: {item.designerNote}
