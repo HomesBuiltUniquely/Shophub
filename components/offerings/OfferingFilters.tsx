@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { canViewServices } from '@/lib/catalog/offering-type';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 import {
   setCategoryType,
@@ -54,6 +56,9 @@ const STOCK_OPTIONS = [
 
 export default function OfferingFilters() {
   const dispatch = useAppDispatch();
+  const user = useCurrentUser();
+  const showServices = canViewServices(user);
+  const typeOptions = showServices ? OFFERING_TYPES : OFFERING_TYPES.filter((type) => type !== 'SERVICE');
 
   // Redux state
   const categoryType = useAppSelector(selectCategoryType);
@@ -64,6 +69,12 @@ export default function OfferingFilters() {
   const filters = useAppSelector(selectFilters);
   const isLoading = useAppSelector(selectCategoriesLoading);
   const derivedOfferings = useAppSelector(selectDerivedOfferings);
+
+  useEffect(() => {
+    if (!showServices && filters.type === 'SERVICE') {
+      dispatch(setFilter({ key: 'type', value: 'all' }));
+    }
+  }, [showServices, filters.type, dispatch]);
 
   // Dynamic vendor options from offering names
   const vendorOptions = useMemo(() => {
@@ -231,7 +242,7 @@ export default function OfferingFilters() {
             className="appearance-none bg-transparent pr-4 text-xs font-semibold text-gray-900 focus:outline-none cursor-pointer capitalize"
           >
             <option value="all">Any</option>
-            {OFFERING_TYPES.map((type) => (
+            {typeOptions.map((type) => (
               <option key={type} value={type}>
                 {type.charAt(0) + type.slice(1).toLowerCase()}
               </option>

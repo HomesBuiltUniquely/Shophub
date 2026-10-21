@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 import { hasIdentity, identitiesOverlap, offeringIdentityKeys, type OfferingIdentity } from '@/lib/client/offering-identity';
+import { isServiceOffering } from '@/lib/catalog/offering-type';
 
 export type SavedOfferingItem = {
   prodId: string;
@@ -194,4 +195,27 @@ export async function listSavedOfferingsForClient(identity: OfferingIdentity) {
     items.push(mapped);
   }
   return items;
+}
+
+export async function excludeServiceSavedItems(items: SavedOfferingRow[]) {
+  if (!items.length) return items;
+  const keys = [...new Set(items.flatMap((item) => [item.prodId, item.skuId].filter(Boolean) as string[]))];
+  if (!keys.length) return items;
+  const pool = getHomesMerryDbPool();
+  const placeholders = keys.map(() => '?').join(', ');
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT prod_id, sku_id, offering_type
+     FROM product
+     WHERE prod_id IN (${placeholders})
+        OR sku_id IN (${placeholders})
+        OR CAST(prod_id AS CHAR) IN (${placeholders})`,
+    [...keys, ...keys, ...keys]
+  );
+  const serviceKeys = new Set<string>();
+  for (const row of rows || []) {
+    if (!isServiceOffering(row.offering_type)) continue;
+    if (row.prod_id != null) serviceKeys.add(String(row.prod_id));
+    if (row.sku_id) serviceKeys.add(String(row.sku_id));
+  }
+  return items.filter((item) => !serviceKeys.has(item.prodId) && !serviceKeys.has(String(item.skuId || '')));
 }

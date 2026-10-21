@@ -62,6 +62,14 @@ export function canManageCatalog(role?: PortalRole | null) {
   return role === 'admin' || role === 'enterprise' || role === 'crm' || role === 'designer';
 }
 
+export function canBulkEditCatalog(user?: SessionUser | null) {
+  return user?.role === 'admin' || user?.role === 'enterprise';
+}
+
+export function canDeleteCatalog(user?: SessionUser | null) {
+  return user?.role === 'admin';
+}
+
 export function isInternalStaff(user?: SessionUser | null) {
   return user?.loginSource === 'internal' || user?.role === 'crm' || user?.role === 'designer';
 }

@@ -5,6 +5,7 @@ import { ensureAuthSchema } from '@/lib/auth/ensure';
 import { trySpring } from '@/lib/api/spring';
 import type { SessionUser } from '@/lib/auth/session';
 import type { CreateProductPayload } from '@/lib/api/offering-save';
+import { denyEnterpriseService } from '@/lib/catalog/offering-type';
 
 export function toSpringProductPayload(body: any) {
   const published =
@@ -106,6 +107,10 @@ export async function createCatalogOffering(
   const payload = toSpringProductPayload(body);
   if (!payload.offering_name || !payload.sku_id) {
     return { success: false as const, error: 'offering_name and sku_id are required.', status: 400 };
+  }
+  const typeError = denyEnterpriseService(session, payload.offering_type);
+  if (typeError) {
+    return { success: false as const, error: typeError, status: 403 };
   }
 
   await ensureAuthSchema();
@@ -209,4 +214,198 @@ export async function createCatalogOffering(
       if (!connectionDestroyed) connection.release();
     }
   }
+}
+
+function uniqueProductKeys(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+  return [
+    ...new Set(
+      list
+        .map((value) => String(value ?? '').trim())
+        .filter((value) => value.length > 0)
+    ),
+  ];
+}
+
+async function findCatalogProductIds(
+  rawIds: unknown,
+  session: SessionUser
+) {
+  const keys = uniqueProductKeys(rawIds);
+  if (keys.length === 0) {
+    return { keys, localIds: [] as number[], status: 400 as const, error: 'Select at least one product.' };
+  }
+
+  await ensureAuthSchema();
+  const pool = getHomesMerryDbPool();
+  const placeholders = keys.map(() => '?').join(', ');
+  const ownerSql = session.role === 'admin' ? '1 = 1' : 'created_by = ?';
+  const ownerParams = session.role === 'admin' ? [] : [session.id];
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT prod_id, sku_id, brand
+     FROM product
+     WHERE (${ownerSql})
+       AND (prod_id IN (${placeholders})
+         OR sku_id IN (${placeholders})
+         OR CAST(prod_id AS CHAR) IN (${placeholders}))`,
+    [...ownerParams, ...keys, ...keys, ...keys]
+  );
+  const localIds = [
+    ...new Set((rows || []).map((row) => Number(row.prod_id)).filter((id) => Number.isFinite(id) && id > 0)),
+  ];
+  return { keys, localIds, rows: rows || [], pool };
+}
+
+export async function bulkUpdateCatalogOfferings(input: {
+  rawIds: unknown;
+  action: 'activate' | 'deactivate' | 'price';
+  sellingPrice?: number;
+  percent?: number;
+  session: SessionUser;
+  springToken?: string | null;
+}) {
+  const found = await findCatalogProductIds(input.rawIds, input.session);
+  if (!found.pool) {
+    return {
+      success: false as const,
+      error: found.error || 'Select at least one product.',
+      status: found.status || 400,
+    };
+  }
+  const { localIds, pool } = found;
+  if (localIds.length === 0) {
+    return { success: false as const, error: 'Product not found.', status: 404 };
+  }
+
+  const placeholders = localIds.map(() => '?').join(', ');
+  if (input.action === 'price') {
+    const percent = Number(input.percent ?? input.sellingPrice);
+    if (!Number.isFinite(percent) || percent === 0) {
+      return { success: false as const, error: 'Enter a non-zero percentage.', status: 400 };
+    }
+    if (percent < -100) {
+      return { success: false as const, error: 'Percentage cannot be less than -100%.', status: 400 };
+    }
+    await pool.query(
+      `UPDATE product
+       SET selling_price = GREATEST(ROUND(selling_price * (1 + ? / 100), 2), 0)
+       WHERE prod_id IN (${placeholders})`,
+      [percent, ...localIds]
+    );
+    const [updatedRows] = await pool.query<RowDataPacket[]>(
+      `SELECT prod_id, selling_price FROM product WHERE prod_id IN (${placeholders})`,
+      localIds
+    );
+    await Promise.all(
+      (updatedRows || []).map((row) =>
+        trySpring(
+          `/products/updateProduct/${row.prod_id}`,
+          { pricing: { selling_price: Number(row.selling_price) || 0 } },
+          'PUT',
+          input.springToken
+        )
+      )
+    );
+    return { success: true as const, updated: localIds.length, ids: localIds, action: input.action, percent };
+  }
+
+  const published = input.action === 'activate';
+  const publishingStatus = published ? 'PUBLISHED' : 'DRAFT';
+  await pool.query(
+    `UPDATE product SET is_published = ?, publishing_status = ?, visibility = ? WHERE prod_id IN (${placeholders})`,
+    [published ? 1 : 0, publishingStatus, published ? 1 : 0, ...localIds]
+  );
+  await Promise.all(
+    localIds.map((id) =>
+      trySpring(
+        `/products/updateProduct/${id}`,
+        {
+          is_published: published,
+          internal: { visibility_status: { publishing_status: publishingStatus, visibility: published } },
+        },
+        'PUT',
+        input.springToken
+      )
+    )
+  );
+  return { success: true as const, updated: localIds.length, ids: localIds, action: input.action };
+}
+
+export async function deleteCatalogOfferings(
+  rawIds: unknown,
+  springToken?: string | null
+) {
+  const keys = uniqueProductKeys(rawIds);
+  if (keys.length === 0) {
+    return { success: false as const, error: 'Select at least one product to delete.', status: 400 };
+  }
+
+  await ensureAuthSchema();
+  const pool = getHomesMerryDbPool();
+  const placeholders = keys.map(() => '?').join(', ');
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT prod_id, sku_id, brand
+     FROM product
+     WHERE prod_id IN (${placeholders})
+        OR sku_id IN (${placeholders})
+        OR CAST(prod_id AS CHAR) IN (${placeholders})`,
+    [...keys, ...keys, ...keys]
+  );
+
+  const localIds = [
+    ...new Set((rows || []).map((row) => Number(row.prod_id)).filter((id) => Number.isFinite(id) && id > 0)),
+  ];
+  const springIds = [...new Set([...keys, ...localIds.map(String)])];
+
+  const springResults = await Promise.all(
+    springIds.map(async (id) => {
+      const result = await trySpring(`/products/deleteProduct/${encodeURIComponent(id)}`, undefined, 'DELETE', springToken);
+      return { id, ok: result.ok || result.status === 404, status: result.status };
+    })
+  );
+
+  if (localIds.length > 0) {
+    const localPlaceholders = localIds.map(() => '?').join(', ');
+    await pool.query(`DELETE FROM product WHERE prod_id IN (${localPlaceholders})`, localIds);
+    try {
+      await pool.query(
+        `DELETE FROM client_saved_offerings WHERE prod_id IN (${localPlaceholders}) OR prod_id IN (${keys.map(() => '?').join(', ')})`,
+        [...localIds.map(String), ...keys]
+      );
+    } catch {
+      /* table may not exist on every environment */
+    }
+    const brandCounts = new Map<string, number>();
+    for (const row of rows || []) {
+      const brand = String(row.brand || '').trim();
+      if (!brand) continue;
+      brandCounts.set(brand, (brandCounts.get(brand) || 0) + 1);
+    }
+    for (const [brand, count] of brandCounts) {
+      await pool.query(
+        `UPDATE brands
+         SET offerings_count = GREATEST(CAST(offerings_count AS SIGNED) - ?, 0)
+         WHERE brand_name = ?`,
+        [count, brand]
+      );
+    }
+  }
+
+  const deleted = Math.max(localIds.length, keys.length);
+  const springFailed = springResults.filter((item) => !item.ok);
+  if (localIds.length === 0 && springFailed.length === springResults.length) {
+    const allMissing = springResults.every((item) => item.status === 404);
+    return {
+      success: false as const,
+      error: allMissing ? 'Product not found.' : 'Unable to delete products from the catalog service.',
+      status: allMissing ? 404 : 502,
+    };
+  }
+
+  return {
+    success: true as const,
+    deleted,
+    ids: localIds.length ? localIds : keys,
+    springFailed: springFailed.map((item) => item.id),
+  };
 }
