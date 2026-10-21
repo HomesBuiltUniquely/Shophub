@@ -3,12 +3,21 @@ import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 import { getSessionFromRequest } from '@/lib/auth/account';
 import { ensureAuthSchema } from '@/lib/auth/ensure';
 import { SPRING_TOKEN_COOKIE, trySpring } from '@/lib/api/spring';
-import { createCatalogOffering, localProductValues, toSpringProductPayload } from '@/lib/api/catalog-write';
+import { createCatalogOffering, deleteCatalogOfferings, localProductValues, toSpringProductPayload } from '@/lib/api/catalog-write';
+import { denyEnterpriseService } from '@/lib/catalog/offering-type';
 
 function requireCatalogUser(request: NextRequest) {
   const session = getSessionFromRequest(request);
   if (!session || (session.role !== 'enterprise' && session.role !== 'admin')) {
     return { error: NextResponse.json({ success: false, error: 'Only admin or enterprise users can manage offerings.' }, { status: 403 }) };
+  }
+  return { session };
+}
+
+function requireAdmin(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+  if (!session || session.role !== 'admin') {
+    return { error: NextResponse.json({ success: false, error: 'Only admins can delete products.' }, { status: 403 }) };
   }
   return { session };
 }
@@ -47,6 +56,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const payload = toSpringProductPayload(body);
+    const typeError = denyEnterpriseService(session, payload.offering_type);
+    if (typeError) {
+      return NextResponse.json({ success: false, error: typeError }, { status: 403 });
+    }
     await ensureAuthSchema();
     const pool = getHomesMerryDbPool();
     const ownerSql = session.role === 'admin' ? 'prod_id = ?' : 'prod_id = ? AND created_by = ?';
@@ -98,6 +111,24 @@ export async function PUT(request: NextRequest) {
     console.error('[API /api/offerings PUT]', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to update offering' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = requireAdmin(request);
+    if ('error' in auth && auth.error) return auth.error;
+
+    const body = await request.json().catch(() => ({}));
+    const ids = body?.ids ?? body?.id ?? request.nextUrl.searchParams.getAll('id');
+    const result = await deleteCatalogOfferings(ids, request.cookies.get(SPRING_TOKEN_COOKIE)?.value);
+    return NextResponse.json(result, { status: result.success ? 200 : result.status || 400 });
+  } catch (error: any) {
+    console.error('[API /api/offerings DELETE]', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete offerings' },
       { status: 500 }
     );
   }

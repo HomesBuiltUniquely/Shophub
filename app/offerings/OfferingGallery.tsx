@@ -62,15 +62,28 @@ function openQuote(offering: OfferingResponse) {
   window.location.href = `/quote-engine?${params.toString()}`;
 }
 
-export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
+export function OfferingGrid({
+  offerings,
+  canSelect = false,
+  selectedIds = [],
+  onToggleSelect,
+}: {
+  offerings: OfferingResponse[];
+  canSelect?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (prodId: string, selected: boolean) => void;
+}) {
   const router = useRouter();
   const hideActions = isInternalStaff(useCurrentUser());
+  const selectedSet = new Set(selectedIds);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {offerings.map((offering) => {
         const price = offering.pricing?.selling_price ?? 0;
         const stock = offering.inventory?.current_stock ?? 0;
+        const prodId = String(offering.prodId || '');
+        const selected = selectedSet.has(prodId);
         return (
           <div
             key={offering.prodId}
@@ -83,9 +96,27 @@ export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
                 router.push(`/offerings/single_offering?id=${offering.prodId || '1'}`);
               }
             }}
-            className="text-left bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+            className={`text-left bg-white rounded-xl border shadow-xs overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer ${
+              selected ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-gray-200'
+            }`}
           >
-            <OfferingThumb offering={offering} className="h-40 w-full text-lg" />
+            <div className="relative">
+              {canSelect && (
+                <label
+                  className="absolute top-3 left-3 z-10 rounded-md bg-white/95 p-1.5 shadow-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(e) => onToggleSelect?.(prodId, e.target.checked)}
+                    aria-label={`Select ${offering.offering_name}`}
+                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  />
+                </label>
+              )}
+              <OfferingThumb offering={offering} className="h-40 w-full text-lg" />
+            </div>
             <div className="p-4 space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                 {offering.product?.category || offering.category || 'GENERAL'}
@@ -126,8 +157,19 @@ export function OfferingGrid({ offerings }: { offerings: OfferingResponse[] }) {
   );
 }
 
-export function OfferingMatrix({ offerings }: { offerings: OfferingResponse[] }) {
+export function OfferingMatrix({
+  offerings,
+  canSelect = false,
+  selectedIds = [],
+  onToggleSelect,
+}: {
+  offerings: OfferingResponse[];
+  canSelect?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (prodId: string, selected: boolean) => void;
+}) {
   const router = useRouter();
+  const selectedSet = new Set(selectedIds);
   const groups = useMemo(() => {
     const map = new Map<string, OfferingResponse[]>();
     offerings.forEach((offering) => {
@@ -145,21 +187,42 @@ export function OfferingMatrix({ offerings }: { offerings: OfferingResponse[] })
         <section key={category} className="bg-white rounded-xl border border-gray-200 p-4 shadow-xs">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-3">{category}</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {items.map((offering) => (
-              <button
+            {items.map((offering) => {
+              const prodId = String(offering.prodId || '');
+              const selected = selectedSet.has(prodId);
+              return (
+              <div
                 key={offering.prodId}
-                type="button"
-                onClick={() => router.push(`/offerings/single_offering?id=${offering.prodId || '1'}`)}
-                className="rounded-lg border border-gray-200 p-2 hover:border-gray-400 hover:bg-gray-50 text-left transition-colors"
-                title={offering.offering_name}
+                className={`relative rounded-lg border p-2 hover:border-gray-400 hover:bg-gray-50 text-left transition-colors ${
+                  selected ? 'border-emerald-300 bg-emerald-50/50' : 'border-gray-200'
+                }`}
               >
-                <OfferingThumb offering={offering} className="h-20 w-full rounded-md text-xs mb-2" />
-                <p className="text-[11px] font-bold text-gray-900 truncate">{offering.offering_name}</p>
-                <p className="text-[10px] font-semibold text-gray-600 mt-0.5">
-                  {formatPrice(offering.pricing?.selling_price ?? 0)}
-                </p>
-              </button>
-            ))}
+                {canSelect && (
+                  <label className="absolute top-2 left-2 z-10 rounded bg-white/95 p-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={(e) => onToggleSelect?.(prodId, e.target.checked)}
+                      aria-label={`Select ${offering.offering_name}`}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-black focus:ring-black"
+                    />
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={() => router.push(`/offerings/single_offering?id=${offering.prodId || '1'}`)}
+                  className="w-full text-left"
+                  title={offering.offering_name}
+                >
+                  <OfferingThumb offering={offering} className="h-20 w-full rounded-md text-xs mb-2" />
+                  <p className="text-[11px] font-bold text-gray-900 truncate">{offering.offering_name}</p>
+                  <p className="text-[10px] font-semibold text-gray-600 mt-0.5">
+                    {formatPrice(offering.pricing?.selling_price ?? 0)}
+                  </p>
+                </button>
+              </div>
+              );
+            })}
           </div>
         </section>
       ))}

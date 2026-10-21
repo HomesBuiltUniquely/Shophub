@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/account';
 import { isInternalStaff } from '@/lib/auth/session';
-import { listSavedOfferingsForClient, replaceSavedOfferingsForClient } from '@/lib/client/saved-offerings';
+import {
+  excludeServiceSavedItems,
+  listSavedOfferingsForClient,
+  replaceSavedOfferingsForClient,
+} from '@/lib/client/saved-offerings';
 import { resolveClientUser } from '@/lib/client/userLeadResolver';
 import { draftItemsFromQuoteLines } from '@/lib/client/offerings-order';
 import { persistOfferingOrder } from '@/lib/client/persist-offering-order';
@@ -65,7 +69,8 @@ export async function GET(request: NextRequest) {
         });
       }
     }
-    return NextResponse.json({ items });
+    const visible = user.role === 'client' ? await excludeServiceSavedItems(items) : items;
+    return NextResponse.json({ items: visible });
   } catch (err) {
     console.error('[saved-offerings GET]', err);
     return NextResponse.json({ items: [], error: 'Could not load saved offerings.' }, { status: 500 });

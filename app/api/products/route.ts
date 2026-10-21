@@ -7,6 +7,7 @@ import {
   deduplicateProducts,
   filterEnterpriseProducts,
 } from '@/lib/auth/product-visibility';
+import { canViewServices, filterVisibleByType, isServiceOffering, productTypeSql } from '@/lib/catalog/offering-type';
 
 function isPublishedRow(row: any): boolean {
   const value = row?.is_published;
@@ -129,14 +130,18 @@ export async function GET(request: NextRequest) {
           ? 'created_by = ?'
           : 'CAST(is_published AS UNSIGNED) = 1';
     const ownerParams = session.role === 'enterprise' ? [session.id] : [];
+    const typeSql = productTypeSql(session);
 
     if (id) {
       const [rows]: any = await pool.query(
-        `SELECT * FROM product WHERE (prod_id = ? OR sku_id = ?) AND ${ownerWhere} LIMIT 1`,
+        `SELECT * FROM product WHERE (prod_id = ? OR sku_id = ?) AND ${ownerWhere}${typeSql} LIMIT 1`,
         [id, id, ...ownerParams]
       );
       const row = Array.isArray(rows) ? rows[0] : null;
       if (!row) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
+      if (!canViewServices(session) && isServiceOffering(row.offering_type)) {
         return NextResponse.json({ error: 'Product not found' }, { status: 404 });
       }
       return NextResponse.json(mapProductRow(row));
@@ -158,7 +163,7 @@ export async function GET(request: NextRequest) {
     try {
       const publishedSql = isPublished ? ' AND CAST(is_published AS UNSIGNED) = 1' : '';
       const [localRows]: any = await pool.query(
-        `SELECT * FROM product WHERE ${ownerWhere}${publishedSql} ORDER BY prod_id DESC`,
+        `SELECT * FROM product WHERE ${ownerWhere}${publishedSql}${typeSql} ORDER BY prod_id DESC`,
         ownerParams
       );
       localCatalog = deduplicateProducts((Array.isArray(localRows) ? localRows : []).map(mapProductRow));
@@ -174,7 +179,7 @@ export async function GET(request: NextRequest) {
       const key = String(product.sku_id || product.sku || product.prodId || '').trim().toUpperCase();
       if (key && !merged.has(key)) merged.set(key, product);
     }
-    const catalogProducts = Array.from(merged.values());
+    const catalogProducts = filterVisibleByType(Array.from(merged.values()), session);
     if (catalogProducts.length > 0) {
       const totalElements = catalogProducts.length;
       const totalPages = Math.max(1, Math.ceil(totalElements / size));
@@ -197,7 +202,7 @@ export async function GET(request: NextRequest) {
     const uniqueProductIdsSql = `
       SELECT MAX(prod_id) AS prod_id
       FROM product
-      WHERE ${ownerWhere}
+      WHERE ${ownerWhere}${typeSql}
       GROUP BY COALESCE(NULLIF(UPPER(TRIM(sku_id)), ''), CONCAT('ID:', prod_id))
     `;
 

@@ -10,7 +10,13 @@ import OfferingTable from '@/components/offerings/OfferingTable';
 import { OfferingGrid, OfferingMatrix } from './OfferingGallery';
 import Pagination from '@/components/offerings/Pagination';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { isInternalStaff } from '@/lib/auth/session';
+import { canBulkEditCatalog, canDeleteCatalog, isInternalStaff } from '@/lib/auth/session';
+import CatalogBulkBar from '@/components/offerings/CatalogBulkBar';
+import {
+  bulkUpdateCatalogProducts,
+  confirmDeleteProducts,
+  deleteCatalogProducts,
+} from '@/lib/catalog/bulk-products';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import {
   fetchCatalogOfferingsThunk,
@@ -30,7 +36,11 @@ export default function OfferingsPage() {
   const dispatch = useAppDispatch();
   const user = useCurrentUser();
   const hideCatalogTools = isInternalStaff(user);
+  const canSelect = canBulkEditCatalog(user);
+  const canDelete = canDeleteCatalog(user);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'matrix'>('list');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
 
   // Redux selectors
   const filteredOfferings = useAppSelector(selectFilteredOfferings);
@@ -42,6 +52,35 @@ export default function OfferingsPage() {
 
   const totalItems = filteredOfferings.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const pageIds = paginatedOfferings.map((item) => String(item.prodId || '')).filter(Boolean);
+
+  const toggleSelect = (prodId: string, selected: boolean) => {
+    if (!prodId) return;
+    setSelectedIds((current) => {
+      if (selected) return current.includes(prodId) ? current : [...current, prodId];
+      return current.filter((id) => id !== prodId);
+    });
+  };
+
+  const toggleSelectPage = (selected: boolean) => {
+    setSelectedIds((current) => {
+      if (!selected) return current.filter((id) => !pageIds.includes(id));
+      return [...new Set([...current, ...pageIds])];
+    });
+  };
+
+  const runBulk = async (work: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await work();
+      setSelectedIds([]);
+      await dispatch(fetchCatalogOfferingsThunk());
+    } catch (err: any) {
+      window.alert(err?.message || 'Unable to update products.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // ============================================================================
   // LIFECYCLE - Load initial data directly from database
@@ -212,13 +251,61 @@ export default function OfferingsPage() {
           {/* ===================================================================== */}
           {totalItems > 0 && (
             <div>
+              {canSelect && (
+                <CatalogBulkBar
+                  selectedCount={selectedIds.length}
+                  totalCount={pageIds.length}
+                  busy={busy}
+                  canDelete={canDelete}
+                  onClear={() => setSelectedIds([])}
+                  onSelectPage={() => toggleSelectPage(true)}
+                  onActivate={() =>
+                    runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'activate'))
+                  }
+                  onDeactivate={() =>
+                    runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'deactivate'))
+                  }
+                  onChangePrice={(percent) =>
+                    runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'price', percent))
+                  }
+                  onDelete={
+                    canDelete
+                      ? () => {
+                          if (!confirmDeleteProducts(selectedIds.length)) return;
+                          return runBulk(() => deleteCatalogProducts(selectedIds));
+                        }
+                      : undefined
+                  }
+                />
+              )}
               {viewMode === 'list' && (
                 <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
-                  <OfferingTable offerings={paginatedOfferings} isLoading={isLoading} />
+                  <OfferingTable
+                    offerings={paginatedOfferings}
+                    isLoading={isLoading || busy}
+                    canSelect={canSelect}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectPage}
+                  />
                 </div>
               )}
-              {viewMode === 'grid' && <OfferingGrid offerings={paginatedOfferings} />}
-              {viewMode === 'matrix' && <OfferingMatrix offerings={paginatedOfferings} />}
+              {viewMode === 'grid' && (
+                <OfferingGrid
+                  offerings={paginatedOfferings}
+                  canSelect={canSelect}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
+              )}
+              {viewMode === 'matrix' && (
+                <OfferingMatrix
+                  offerings={paginatedOfferings}
+                  canSelect={canSelect}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
+              )}
               <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
                 <Pagination
                   currentPage={currentPage}

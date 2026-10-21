@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createProduct, updateOfferingSection } from '@/lib/api/offering-save';
 import RichTextEditor from './RichTextEditor';
+import { canCreateService } from '@/lib/catalog/offering-type';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 type TabId = 'GENERAL' | 'PRICING' | 'INVENTORY' | 'MEDIA' | 'SPECIFICATIONS' | 'SEO' | 'INTERNAL';
 
@@ -86,6 +88,8 @@ function formatTime(date: Date) {
 export default function CreateOfferingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const user = useCurrentUser();
+  const allowService = canCreateService(user);
   const [tab, setTab] = useState<TabId>('GENERAL');
   const [brands, setBrands] = useState<{ brand_id: number; brand_name: string }[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -291,7 +295,7 @@ export default function CreateOfferingForm() {
 
     return {
       offering_name: form.offering_name,
-      offering_type: form.offering_type,
+      offering_type: !allowService && form.offering_type === 'SERVICE' ? 'PRODUCT' : form.offering_type,
       sku_id: form.sku_id,
       category: form.category,
       brand: selectedBrand?.brand_name || form.brand,
@@ -547,9 +551,13 @@ export default function CreateOfferingForm() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Offering Type</label>
-                  <select className={inputCls} value={form.offering_type} onChange={(e) => setField('offering_type', e.target.value)}>
+                  <select
+                    className={inputCls}
+                    value={!allowService && form.offering_type === 'SERVICE' ? 'PRODUCT' : form.offering_type}
+                    onChange={(e) => setField('offering_type', e.target.value)}
+                  >
                     <option value="PRODUCT">Product</option>
-                    <option value="SERVICE">Service</option>
+                    {allowService && <option value="SERVICE">Service</option>}
                     <option value="BUNDLE">Bundle</option>
                   </select>
                 </div>
