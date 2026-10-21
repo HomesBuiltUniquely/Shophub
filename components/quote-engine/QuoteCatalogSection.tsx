@@ -125,7 +125,7 @@ export default function QuoteCatalogSection({
             const isPerPiece = item.offering_name.toLowerCase().includes('pulls');
             const imageUrl = item.media?.primary_image?.startsWith('http')
               ? item.media.primary_image
-              : `http://localhost:8080/api/v1/products/${item.prodId}/image`;
+              : '';
 
             return (
               <div
@@ -171,7 +171,7 @@ export default function QuoteCatalogSection({
               const price = prod.pricing?.selling_price ?? 0;
               const imageUrl = prod.media?.primary_image?.startsWith('http')
                 ? prod.media.primary_image
-                : `http://localhost:8080/api/v1/products/${prod.prodId}/image`;
+                : '';
               const isLeadTime = prod.offering_name.toLowerCase().includes('pendant') || (prod.lead_time && prod.lead_time > 2);
 
               return (

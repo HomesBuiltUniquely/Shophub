@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
+import { offeringImageUrl } from '@/lib/media/offering-image';
 
 interface OfferingRowProps {
   offering: OfferingResponse;
@@ -35,10 +36,11 @@ export default function OfferingRow({
   const hideActions = isInternalStaff(user);
   const prodId = String(offering.prodId || '');
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUrl =
-    offering.product?.image_url && !offering.product.image_url.includes('example.com')
-      ? offering.product.image_url
-      : undefined;
+  const imageUrl = offeringImageUrl(
+    offering.product?.image_url,
+    offering.media?.primary_image,
+    offering.image
+  );
 
   const sellingPrice = offering.pricing?.selling_price ?? 0;
   const costPrice = offering.pricing?.cost_price ?? offering.pricing?.cost ?? 0;
@@ -105,6 +107,7 @@ export default function OfferingRow({
                 width={36}
                 height={36}
                 className="w-full h-full object-cover"
+                unoptimized
                 onError={() => setImageFailed(true)}
               />
             ) : (
