@@ -26,6 +26,8 @@ export interface QuoteModel {
   subtotal: number;
   discountPercentage?: number;
   totalDiscount?: number;
+  discountType?: 'percentage' | 'amount';
+  discountValue?: number;
   freightPercentage?: number;
   estimatedFreight?: number;
   grandTotal: number;

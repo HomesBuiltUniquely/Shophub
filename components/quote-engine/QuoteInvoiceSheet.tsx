@@ -170,7 +170,9 @@ export default function QuoteInvoiceSheet({
             label={`Discount${quote.discountPercentage ? ` (${quote.discountPercentage}%)` : ''}`}
             value={`-${inr(quote.totalDiscount || 0)}`}
           />
-          <Row label="Estimated freight" value={inr(quote.estimatedFreight || 0)} />
+          {Boolean(quote.estimatedFreight && quote.estimatedFreight > 0) && (
+            <Row label="Estimated freight" value={inr(quote.estimatedFreight || 0)} />
+          )}
           <Row label="GST" value={inr(gst)} />
           <Row label="Total for this statement" value={inr(quote.grandTotal || 0)} strong />
         </div>
@@ -190,7 +192,7 @@ export default function QuoteInvoiceSheet({
                 {groupItems.map((item) => (
                   <div key={`${item.prodId}-${item.room}-${item.skuId || ''}`} className="ml-0">
                     <Row
-                      label={`${item.offeringName}${item.skuId ? ` (${item.skuId})` : ''} · ${item.room || 'Room'} × ${item.quantity}`}
+                      label={`${item.offeringName} · ${item.room || 'Room'} × ${item.quantity}`}
                       value={inr(item.totalPrice || item.unitPrice * item.quantity)}
                     />
                     <Row label="Charges" value={inr(item.totalPrice || item.unitPrice * item.quantity)} muted />

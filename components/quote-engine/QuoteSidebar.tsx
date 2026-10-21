@@ -11,7 +11,7 @@ interface QuoteSidebarProps {
   onClose: () => void;
   isAdmin?: boolean;
   canEditDiscount?: boolean;
-  onUpdateDiscount?: (newPct: number) => void;
+  onUpdateDiscount?: (value: number, mode?: 'percentage' | 'amount') => void;
   onUpdateFreight?: (newFreightPct: number) => void;
 }
 
@@ -26,12 +26,19 @@ export default function QuoteSidebar({
   onUpdateDiscount,
   onUpdateFreight,
 }: QuoteSidebarProps) {
-  const allowDiscountEdit = Boolean(canEditDiscount || isAdmin);
+  const allowDiscountEdit = true;
   const [isEditingDiscount, setIsEditingDiscount] = React.useState(false);
+  const [discountMode, setDiscountMode] = React.useState<'percentage' | 'amount'>(
+    quote?.discountType || 'percentage'
+  );
   const [customDiscountInput, setCustomDiscountInput] = React.useState('');
-  const [isEditingFreight, setIsEditingFreight] = React.useState(false);
-  const [customFreightInput, setCustomFreightInput] = React.useState('');
   const items = quote?.items || [];
+
+  React.useEffect(() => {
+    if (quote?.discountType) {
+      setDiscountMode(quote.discountType);
+    }
+  }, [quote?.discountType]);
 
   // Group items by room
   const roomsMap = items.reduce((acc, item) => {
@@ -45,7 +52,7 @@ export default function QuoteSidebar({
   const totalItemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   const subtotal = quote?.subtotal ?? items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const discountPct = quote?.discountPercentage ?? 5;
+  const discountPct = quote?.discountPercentage ?? 0;
   const discountAmount = quote?.totalDiscount ?? subtotal * (discountPct / 100);
 
   const getRoomIcon = (roomName: string) => {
@@ -156,7 +163,12 @@ export default function QuoteSidebar({
                         {/* Details & Controls */}
                         <div className="flex-1 min-w-0 pr-4">
                           <div className="flex items-start justify-between">
-                            <h4 className="text-xs font-bold text-gray-900 truncate">{item.offeringName}</h4>
+                            <div>
+                              <h4 className="text-xs font-bold text-gray-900 truncate">{item.offeringName}</h4>
+                              {item.skuId && (
+                                <span className="text-[10px] font-mono text-gray-400">{item.skuId}</span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex items-center justify-between mt-2">
@@ -249,18 +261,19 @@ export default function QuoteSidebar({
             </div>
           </div>
 
-          {/* Discount Control Panel (Admin, CRM, Designer) */}
+          {/* Discount Control Panel (Percentage % / Rupees ₹) */}
           {allowDiscountEdit && isEditingDiscount && onUpdateDiscount && (
-            <div className="mt-2.5 p-2.5 bg-white border border-gray-200 rounded-lg shadow-xs space-y-2">
+            <div className="mt-2.5 p-2.5 bg-white border border-gray-200 rounded-lg shadow-xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  Select Discount
+                  Custom Discount
                 </span>
-                {discountPct > 0 && (
+                {discountAmount > 0 && (
                   <button
                     type="button"
                     onClick={() => {
-                      onUpdateDiscount(0);
+                      onUpdateDiscount(0, 'percentage');
+                      setCustomDiscountInput('');
                       setIsEditingDiscount(false);
                     }}
                     className="text-[10px] text-red-500 hover:text-red-700 font-medium"
@@ -270,49 +283,80 @@ export default function QuoteSidebar({
                 )}
               </div>
 
-              {/* Preset percentage pills */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[3, 5, 7, 10, 15].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      onUpdateDiscount(preset);
-                      setIsEditingDiscount(false);
-                    }}
-                    className={`px-2.5 py-1 text-[10px] font-semibold rounded-md border transition-colors ${
-                      discountPct === preset
-                        ? 'bg-black text-white border-black'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {preset}%
-                  </button>
-                ))}
+              {/* Mode Toggle: Percentage (%) vs Rupees (₹) */}
+              <div className="flex items-center p-0.5 bg-gray-100 rounded-md border border-gray-200/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDiscountMode('percentage');
+                    setCustomDiscountInput('');
+                  }}
+                  className={`flex-1 py-1 text-[11px] rounded transition-all flex items-center justify-center gap-1 ${
+                    discountMode === 'percentage'
+                      ? 'bg-white text-black shadow-xs font-bold'
+                      : 'text-gray-600 hover:text-black font-medium'
+                  }`}
+                >
+                  <span className="font-bold">%</span>
+                  <span>Percentage</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDiscountMode('amount');
+                    setCustomDiscountInput('');
+                  }}
+                  className={`flex-1 py-1 text-[11px] rounded transition-all flex items-center justify-center gap-1 ${
+                    discountMode === 'amount'
+                      ? 'bg-white text-black shadow-xs font-bold'
+                      : 'text-gray-600 hover:text-black font-medium'
+                  }`}
+                >
+                  <span className="font-bold">₹</span>
+                  <span>Rupees</span>
+                </button>
               </div>
 
-              {/* Custom percentage input */}
-              <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="Custom %"
-                  value={customDiscountInput}
-                  onChange={(e) => setCustomDiscountInput(e.target.value)}
-                  className="w-20 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-black"
-                />
+              {/* Custom percentage / rupee input */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <div className="relative flex-1">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 select-none">
+                    {discountMode === 'percentage' ? '%' : '₹'}
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={discountMode === 'percentage' ? 100 : (subtotal || 0)}
+                    step={discountMode === 'percentage' ? '0.1' : '1'}
+                    placeholder={discountMode === 'percentage' ? 'Custom % (e.g. 10)' : 'Amount in ₹ (e.g. 2000)'}
+                    value={customDiscountInput}
+                    onChange={(e) => setCustomDiscountInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const parsed = parseFloat(customDiscountInput);
+                        const maxVal = discountMode === 'percentage' ? 100 : (subtotal || 0);
+                        if (!isNaN(parsed) && parsed >= 0 && parsed <= maxVal) {
+                          onUpdateDiscount(parsed, discountMode);
+                          setCustomDiscountInput('');
+                          setIsEditingDiscount(false);
+                        }
+                      }
+                    }}
+                    className="w-full pl-6 pr-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     const parsed = parseFloat(customDiscountInput);
-                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-                      onUpdateDiscount(parsed);
+                    const maxVal = discountMode === 'percentage' ? 100 : (subtotal || 0);
+                    if (!isNaN(parsed) && parsed >= 0 && parsed <= maxVal) {
+                      onUpdateDiscount(parsed, discountMode);
                       setCustomDiscountInput('');
                       setIsEditingDiscount(false);
                     }
                   }}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-black text-white rounded hover:bg-gray-800 transition-colors"
+                  className="px-3.5 py-1.5 text-[10px] font-bold bg-black text-white rounded hover:bg-gray-800 transition-colors"
                 >
                   Apply
                 </button>
@@ -321,105 +365,7 @@ export default function QuoteSidebar({
           )}
         </div>
 
-        {/* Dynamic Estimated Freight Section */}
-        <div className="pt-1 pb-1">
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <span>Estimated Freight ({quote?.freightPercentage ?? 2.5}%)</span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-gray-900">
-                ₹{(quote?.estimatedFreight ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              {allowDiscountEdit && onUpdateFreight && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingFreight(!isEditingFreight)}
-                  className="text-[10px] font-semibold text-black hover:text-gray-700 underline underline-offset-2 ml-1"
-                >
-                  {isEditingFreight ? 'Close' : 'Edit'}
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* Freight Control Panel (Admin, CRM, Designer) */}
-          {allowDiscountEdit && isEditingFreight && onUpdateFreight && (
-            <div className="mt-2.5 p-2.5 bg-white border border-gray-200 rounded-lg shadow-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  Freight Rate (% of Net Total)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onUpdateFreight(2.5);
-                    setIsEditingFreight(false);
-                  }}
-                  className="text-[10px] text-gray-500 hover:text-black font-medium"
-                >
-                  Reset (2.5%)
-                </button>
-              </div>
-
-              {/* Preset percentage pills */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[1, 2, 2.5, 3, 5].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      onUpdateFreight(preset);
-                      setIsEditingFreight(false);
-                    }}
-                    className={`px-2.5 py-1 text-[10px] font-semibold rounded-md border transition-colors ${
-                      (quote?.freightPercentage ?? 2.5) === preset
-                        ? 'bg-black text-white border-black'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {preset}%
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom percentage input */}
-              <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  placeholder="Custom %"
-                  value={customFreightInput}
-                  onChange={(e) => setCustomFreightInput(e.target.value)}
-                  className="w-20 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-black"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const parsed = parseFloat(customFreightInput);
-                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-                      onUpdateFreight(parsed);
-                      setCustomFreightInput('');
-                      setIsEditingFreight(false);
-                    }
-                  }}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-black text-white rounded hover:bg-gray-800 transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Regional logistics surcharges note */}
-        <div className="mt-3 bg-gray-900 text-white text-[10px] p-2.5 rounded-lg flex items-center gap-2 shadow-xs">
-          <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9" strokeWidth={2} />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
-          </svg>
-          <span className="leading-tight text-gray-300">Calculations include regional logistics surcharges.</span>
-        </div>
       </div>
     </aside>
   );

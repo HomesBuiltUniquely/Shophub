@@ -195,13 +195,13 @@ function LoginForm() {
           <div className="relative h-12 w-12 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-white/20">
             <Image 
               src="/images/hub-logo.png" 
-              alt="Homes & Merry Logo" 
+              alt="Home & Merry Logo"
               fill 
               className="object-contain p-1" 
               priority
             />
           </div>
-          <span className="text-[24px] font-extrabold tracking-tight">Homes & Merry</span>
+          <span className="text-[24px] font-extrabold tracking-tight">Home & Merry</span>
         </div>
 
         {/* Welcome Card */}

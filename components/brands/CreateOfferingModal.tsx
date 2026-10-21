@@ -20,6 +20,7 @@ import React, { useRef, useState } from 'react';
 import { BrandEntity } from '@/lib/db/homesmerry';
 import { canCreateService } from '@/lib/catalog/offering-type';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
+import { generateSku } from '@/lib/utils/sku';
 
 interface CreateOfferingModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export default function CreateOfferingModal({
   const [offeringName, setOfferingName] = useState('');
   const [offeringType, setOfferingType] = useState<'PRODUCT' | 'SERVICE' | 'BUNDLE'>('PRODUCT');
   const [skuId, setSkuId] = useState('');
-  const [category, setCategory] = useState('LIGHTING');
+  const [category, setCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState(brands[0]?.brand_name || 'Lumina Italica');
   const [dropdownBrands, setDropdownBrands] = useState<{ brand_id: number; brand_name: string; code: string }[]>([]);
   const [sellingPrice, setSellingPrice] = useState(19999);
@@ -91,8 +92,8 @@ export default function CreateOfferingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitInProgress.current) return;
-    if (!offeringName || !skuId || !selectedBrand) {
-      setError('Offering Name, SKU ID, and Brand are required.');
+    if (!offeringName || !category || !skuId || !selectedBrand) {
+      setError('Offering Name, Category, and Brand are required.');
       return;
     }
 
@@ -196,15 +197,17 @@ export default function CreateOfferingModal({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                SKU Identifier *
+                SKU Identifier
               </label>
               <input
                 type="text"
                 required
+                readOnly
+                tabIndex={-1}
                 value={skuId}
-                onChange={(e) => setSkuId(e.target.value)}
-                placeholder="LUM-SCO-002"
-                className="w-full px-3.5 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
+                placeholder="Select category to generate SKU"
+                title={skuId ? "SKU is automatically generated and cannot be manually edited." : "Select category to generate SKU."}
+                className="w-full px-3.5 py-2 bg-gray-100/80 border border-gray-200 rounded-xl text-xs font-semibold font-mono text-gray-800 cursor-not-allowed select-all focus:outline-none"
               />
             </div>
 
@@ -214,9 +217,14 @@ export default function CreateOfferingModal({
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  setCategory(newCat);
+                  setSkuId(newCat ? generateSku({ category: newCat, offeringName, brand: selectedBrand }) : '');
+                }}
                 className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
               >
+                <option value="">Select Category...</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}

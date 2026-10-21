@@ -6,6 +6,7 @@ import { trySpring } from '@/lib/api/spring';
 import type { SessionUser } from '@/lib/auth/session';
 import type { CreateProductPayload } from '@/lib/api/offering-save';
 import { denyEnterpriseService } from '@/lib/catalog/offering-type';
+import { generateSku } from '@/lib/utils/sku';
 
 export function toSpringProductPayload(body: any) {
   const published =
@@ -14,10 +15,19 @@ export function toSpringProductPayload(body: any) {
     body.is_published === '1' ||
     String(body.publishing_status || '').toUpperCase() === 'PUBLISHED';
 
+  const generatedSku =
+    String(body.sku_id || '').trim().toUpperCase() ||
+    generateSku({
+      offeringName: body.offering_name,
+      category: body.category,
+      brand: body.brand,
+      material: body.primary_material,
+    });
+
   return {
     offering_name: body.offering_name,
     offering_type: body.offering_type || 'PRODUCT',
-    sku_id: String(body.sku_id || '').trim().toUpperCase(),
+    sku_id: generatedSku,
     category: String(body.category || 'FURNITURE').toUpperCase(),
     brand: body.brand,
     brand_id: body.brand_id != null && body.brand_id !== '' ? Number(body.brand_id) : undefined,
@@ -34,7 +44,7 @@ export function toSpringProductPayload(body: any) {
       units: body.units || 'PER_PIECE',
     },
     inventory: body.inventory || {
-      sku_Id: String(body.sku_id || '').trim().toUpperCase(),
+      sku_Id: generatedSku,
       current_stock: Number(body.current_stock) || 0,
       sourcingLogistics: {
         preferred_vendor: body.preferred_vendor || 'IN_HOUSE',
@@ -134,23 +144,31 @@ export async function createCatalogOffering(
       return { success: false as const, error: 'This offering is being saved. Please try again shortly.', status: 503 };
     }
 
-    const [existingRows] = await connection.query<RowDataPacket[]>(
-      `SELECT prod_id
-       FROM product
-       WHERE UPPER(sku_id) = ? AND created_by = ?
-       ORDER BY prod_id ASC
-       LIMIT 1`,
-      [payload.sku_id, session.id]
-    );
-    const existingId = existingRows[0]?.prod_id;
-    if (existingId != null) {
-      return {
-        success: true as const,
-        alreadyExists: true,
-        message: `Offering with SKU "${payload.sku_id}" already exists.`,
-        prodId: existingId,
-      };
+    // Ensure SKU is 100% globally unique across the whole product catalog
+    let uniqueSku = payload.sku_id;
+    let attempts = 0;
+    while (attempts < 10) {
+      const [existingRows] = await connection.query<RowDataPacket[]>(
+        `SELECT prod_id
+         FROM product
+         WHERE UPPER(sku_id) = ?
+         LIMIT 1`,
+        [uniqueSku]
+      );
+      if (!existingRows || existingRows.length === 0) {
+        break; // Confirmed 100% unique in DB
+      }
+      // Regenerate if matching SKU already exists in database
+      uniqueSku = generateSku({
+        offeringName: payload.offering_name,
+        category: payload.category,
+        brand: payload.brand,
+      });
+      attempts++;
     }
+
+    payload.sku_id = uniqueSku;
+    row.sku_id = uniqueSku;
 
     const spring = await trySpring('/products/createProduct', payload, 'POST', springToken);
     const [result] = await connection.query<ResultSetHeader>(

@@ -1,21 +1,5 @@
 'use client';
 
-/**
- * ==============================================================================
- * COMPONENT: components/brands/AddBrandModal.tsx
- * PURPOSE: Modal Dialog for Adding a New Brand to the Master Catalog
- * ==============================================================================
- * TRIGGERED BY:
- * - The black "+ ADD BRAND" button in the top right of the Brands Master header.
- *
- * FUNCTIONALITY:
- * - Captures Brand Name, Manufacturer, Unique Code, Country (with flag),
- *   Categories, Offerings Count, and Initial Status (ACTIVE / DRAFT).
- * - Submits payload to Next.js API `POST /api/brands`, saving to `homes_merry.brands`.
- * - Triggers table and KPI cards refresh upon successful submission.
- * ==============================================================================
- */
-
 import React, { useState } from 'react';
 
 interface AddBrandModalProps {

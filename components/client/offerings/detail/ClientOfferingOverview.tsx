@@ -69,15 +69,8 @@ export default function ClientOfferingOverview({
         )}
       </div>
 
-      {/* SKU & Brand Pill & Client Tags */}
+      {/* Brand Pill & Client Tags */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {/* SKU Pill */}
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full text-xs font-bold text-gray-700 border border-gray-200/80 shadow-2xs">
-          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
-          <span>SKU: {sku}</span>
-        </span>
 
         {/* Brand Badge */}
         {brand && (
