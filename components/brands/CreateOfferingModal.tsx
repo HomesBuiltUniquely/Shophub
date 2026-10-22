@@ -21,8 +21,6 @@ import { BrandEntity } from '@/lib/db/homesmerry';
 import { canCreateService } from '@/lib/catalog/offering-type';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { generateSku } from '@/lib/utils/sku';
-import { canCreateService } from '@/lib/catalog/offering-type';
-import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface CreateOfferingModalProps {
   isOpen: boolean;
