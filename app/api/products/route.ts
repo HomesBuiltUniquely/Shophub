@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       session.role === 'admin'
         ? '1 = 1'
         : session.role === 'enterprise'
-          ? 'created_by = ?'
+          ? '(created_by = ? OR CAST(is_published AS UNSIGNED) = 1)'
           : 'CAST(is_published AS UNSIGNED) = 1';
     const ownerParams = session.role === 'enterprise' ? [session.id] : [];
     const typeSql = productTypeSql(session);
@@ -141,6 +141,22 @@ export async function GET(request: NextRequest) {
       );
       const row = Array.isArray(rows) ? rows[0] : null;
       if (!row) {
+        try {
+          const springUrl = process.env.NEXT_PUBLIC_SPRING_BOOT_URL || 'http://localhost:8080';
+          const springRes = await fetch(`${springUrl}/api/v1/products/getProduct/${encodeURIComponent(String(id))}`, {
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+          });
+          if (springRes.ok) {
+            const springData = await springRes.json();
+            if (springData) return NextResponse.json(springData);
+          }
+        } catch {
+          // ignore spring fallback error
+        }
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
+      if (!canViewServices(session) && isServiceOffering(row.offering_type)) {
         return NextResponse.json({ error: 'Product not found' }, { status: 404 });
       }
       if (!canViewServices(session) && isServiceOffering(row.offering_type)) {

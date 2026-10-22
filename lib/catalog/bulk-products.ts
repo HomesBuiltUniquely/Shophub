@@ -23,7 +23,12 @@ export async function bulkUpdateCatalogProducts(
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: uniqueIds, action, percent: adjustment?.percent, amount: adjustment?.amount }),
+    body: JSON.stringify({
+      ids: uniqueIds,
+      action,
+      percent: adjustment?.percent,
+      amount: adjustment?.amount,
+    }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.success === false) {

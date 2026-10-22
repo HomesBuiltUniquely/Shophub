@@ -77,10 +77,17 @@ export default function ClientOfferingSpecsTabs({
               <h3 className="text-xs font-black uppercase tracking-[0.16em] text-gray-950 mb-2">
                 OVERVIEW
               </h3>
-              <p className="text-sm text-gray-600 leading-relaxed font-normal">
-                {description ||
-                  'The Modern Luxury Velvet Sofa delivers the ideal balance of plush luxury and enduring durability. Crafted with premium high-grade velvet upholstery over a reinforced kiln-dried hardwood frame, this piece provides exceptional ergonomic lumbar support and a sleek modern silhouette designed for contemporary living environments.'}
-              </p>
+              {/<[a-z][\s\S]*>/i.test(description || '') ? (
+                <div
+                  className="text-sm text-gray-600 leading-relaxed font-normal space-y-2 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4"
+                  dangerouslySetInnerHTML={{ __html: description || '' }}
+                />
+              ) : (
+                <p className="text-sm text-gray-600 leading-relaxed font-normal whitespace-pre-line">
+                  {description ||
+                    'The Modern Luxury Velvet Sofa delivers the ideal balance of plush luxury and enduring durability. Crafted with premium high-grade velvet upholstery over a reinforced kiln-dried hardwood frame, this piece provides exceptional ergonomic lumbar support and a sleek modern silhouette designed for contemporary living environments.'}
+                </p>
+              )}
             </div>
 
             {/* Design Highlights */}

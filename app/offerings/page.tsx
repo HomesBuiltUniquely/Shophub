@@ -10,7 +10,11 @@ import OfferingTable from '@/components/offerings/OfferingTable';
 import { OfferingGrid, OfferingMatrix } from './OfferingGallery';
 import Pagination from '@/components/offerings/Pagination';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { canBulkEditCatalog, canDeleteCatalog, isInternalStaff } from '@/lib/auth/session';
+import {
+  canBulkEditCatalog,
+  canDeleteCatalog,
+  isInternalStaff,
+} from '@/lib/auth/session';
 import CatalogBulkBar from '@/components/offerings/CatalogBulkBar';
 import {
   bulkUpdateCatalogProducts,

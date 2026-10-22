@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface OfferingPricingSummaryProps {
   offeringName: string;
   category?: string;
@@ -39,6 +41,8 @@ export default function OfferingPricingSummary({
   keywords = [],
   isVerified = true,
 }: OfferingPricingSummaryProps) {
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
   const formattedPrice = price.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -71,13 +75,30 @@ export default function OfferingPricingSummary({
 
       {/* Main Title & Short Description */}
       <div>
-        <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-          {offeringName}
-        </h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+            {offeringName}
+          </h1>
+          <button
+            type="button"
+            onClick={() => setIsInfoOpen(true)}
+            className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200/60 flex items-center justify-center text-xs font-bold shrink-0 transition-colors cursor-pointer"
+            title="View product descriptions"
+          >
+            i
+          </button>
+        </div>
         {shortDesc && (
-          <p className="mt-1.5 text-xs text-gray-600 font-medium">
-            {shortDesc}
-          </p>
+          /<[a-z][\s\S]*>/i.test(shortDesc) ? (
+            <div
+              className="mt-1.5 text-xs text-gray-600 font-medium space-y-1 [&>p]:mb-1"
+              dangerouslySetInnerHTML={{ __html: shortDesc }}
+            />
+          ) : (
+            <p className="mt-1.5 text-xs text-gray-600 font-medium whitespace-pre-line">
+              {shortDesc}
+            </p>
+          )
         )}
       </div>
 
@@ -143,9 +164,16 @@ export default function OfferingPricingSummary({
           <div className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">
             ABOUT THIS OFFERING
           </div>
-          <p className="text-xs text-gray-600 leading-relaxed">
-            {longDesc}
-          </p>
+          {/<[a-z][\s\S]*>/i.test(longDesc) ? (
+            <div
+              className="text-xs text-gray-600 leading-relaxed space-y-2 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4"
+              dangerouslySetInnerHTML={{ __html: longDesc }}
+            />
+          ) : (
+            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
+              {longDesc}
+            </p>
+          )}
         </div>
       )}
 
@@ -178,6 +206,90 @@ export default function OfferingPricingSummary({
           )}
         </div>
       </div>
+
+      {/* Description Info Modal */}
+      {isInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setIsInfoOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
+              <div className="flex items-center gap-2 min-w-0 pr-3">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold font-serif shrink-0">
+                  i
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-gray-900 truncate">{offeringName}</h3>
+                  {sku && sku !== '—' && (
+                    <span className="text-[10px] font-mono text-gray-500">{sku}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInfoOpen(false)}
+                className="text-gray-400 hover:text-black w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Short Description */}
+              <div>
+                <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <span>Short Description</span>
+                </h4>
+                <div className="p-3 bg-gray-50 rounded-xl text-gray-800 text-xs leading-relaxed border border-gray-100">
+                  {shortDesc ? (
+                    /<[a-z][\s\S]*>/i.test(shortDesc) ? (
+                      <div
+                        className="space-y-1 [&>p]:mb-1 [&>ul]:list-disc [&>ul]:pl-4"
+                        dangerouslySetInnerHTML={{ __html: shortDesc }}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-line">{shortDesc}</p>
+                    )
+                  ) : (
+                    <p className="text-gray-400 italic">No short description available.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Long Description */}
+              <div>
+                <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <span>Long Description</span>
+                </h4>
+                <div className="p-3.5 bg-gray-50 rounded-xl text-gray-800 text-xs leading-relaxed border border-gray-100 max-h-60 overflow-y-auto">
+                  {longDesc ? (
+                    <div
+                      className="space-y-2 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4"
+                      dangerouslySetInnerHTML={{ __html: longDesc }}
+                    />
+                  ) : (
+                    <p className="text-gray-400 italic">No detailed long description available.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsInfoOpen(false)}
+                className="px-4 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
