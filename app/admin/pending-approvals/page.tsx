@@ -59,6 +59,15 @@ function parseGallery(raw?: string): string[] {
   }
 }
 
+function getStatusCategory(item: PendingOffering): 'PENDING' | 'APPROVED' | 'REJECTED' {
+  const approval = String(item.approval_status || '').toUpperCase();
+  const publishing = String(item.publishing_status || '').toUpperCase();
+
+  if (approval === 'REJECTED' || publishing === 'REJECTED') return 'REJECTED';
+  if (approval === 'APPROVED' || publishing === 'PUBLISHED') return 'APPROVED';
+  return 'PENDING';
+}
+
 export default function PendingApprovalsPage() {
   const router = useRouter();
   const user = useCurrentUser();
@@ -67,6 +76,7 @@ export default function PendingApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [busyProdId, setBusyProdId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
   const [reviewingItem, setReviewingItem] = useState<PendingOffering | null>(null);
   const [activeImage, setActiveImage] = useState<string>('');
@@ -115,9 +125,31 @@ export default function PendingApprovalsPage() {
       }
 
       setActionSuccess(data.message);
-      setItems((prev) => prev.filter((item) => item.prod_id !== prodId));
+      // Update item status in-place so counts and tabs update seamlessly
+      setItems((prev) =>
+        prev.map((item) =>
+          item.prod_id === prodId
+            ? {
+                ...item,
+                approval_status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+                publishing_status: action === 'approve' ? 'PUBLISHED' : 'REJECTED',
+                is_published: action === 'approve' ? 1 : 0,
+              }
+            : item
+        )
+      );
+
       if (reviewingItem?.prod_id === prodId) {
-        setReviewingItem(null);
+        setReviewingItem((prev) =>
+          prev
+            ? {
+                ...prev,
+                approval_status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+                publishing_status: action === 'approve' ? 'PUBLISHED' : 'REJECTED',
+                is_published: action === 'approve' ? 1 : 0,
+              }
+            : null
+        );
       }
     } catch (err: any) {
       setError(err.message || `Failed to ${action} offering`);
@@ -132,14 +164,32 @@ export default function PendingApprovalsPage() {
     setActiveImage(item.primary_image || gallery[0] || '');
   };
 
+  // Status counts
+  const counts = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+    for (const item of items) {
+      const cat = getStatusCategory(item);
+      if (cat === 'PENDING') pending++;
+      else if (cat === 'APPROVED') approved++;
+      else if (cat === 'REJECTED') rejected++;
+    }
+    return { total: items.length, pending, approved, rejected };
+  }, [items]);
+
+  // Filtering by tab and search
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return items;
     return items.filter((item) => {
+      const cat = getStatusCategory(item);
+      if (activeTab !== 'ALL' && cat !== activeTab) return false;
+      if (!q) return true;
+
       const name = (item.offering_name || '').toLowerCase();
       const sku = (item.sku_id || '').toLowerCase();
       const brand = (item.brand || '').toLowerCase();
-      const cat = (item.category || '').toLowerCase();
+      const category = (item.category || '').toLowerCase();
       const email = (item.submitter_email || '').toLowerCase();
       const submitter = `${item.submitter_first_name || ''} ${item.submitter_last_name || ''}`.toLowerCase();
       const org = (item.submitter_brand || '').toLowerCase();
@@ -147,13 +197,13 @@ export default function PendingApprovalsPage() {
         name.includes(q) ||
         sku.includes(q) ||
         brand.includes(q) ||
-        cat.includes(q) ||
+        category.includes(q) ||
         email.includes(q) ||
         submitter.includes(q) ||
         org.includes(q)
       );
     });
-  }, [items, searchQuery]);
+  }, [items, activeTab, searchQuery]);
 
   if (user && user.role !== 'admin') {
     return (
@@ -189,14 +239,14 @@ export default function PendingApprovalsPage() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                  Pending Approvals
+                  Offering Approvals & Tracking
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                  {items.length} Pending
+                  {counts.pending} Action Needed
                 </span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Offerings uploaded, imported, or created by Enterprise accounts that require Administrator approval before publishing to the Master Catalog.
+                Review, approve, or reject offerings uploaded, imported, or created by Enterprise accounts before publishing to the Master Catalog.
               </p>
             </div>
 
@@ -237,18 +287,104 @@ export default function PendingApprovalsPage() {
             </div>
           )}
 
-          {/* Search bar */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
+          {/* ========================================================================= */}
+          {/* 4 SUMMARY METRIC CARDS (Exact same as enterprise tracker) */}
+          {/* ========================================================================= */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              onClick={() => setActiveTab('ALL')}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                activeTab === 'ALL'
+                  ? 'bg-black text-white border-black shadow-md ring-2 ring-black/20'
+                  : 'bg-white border-gray-200 hover:border-gray-300 text-gray-900'
+              }`}
+            >
+              <div className={`text-xs font-semibold uppercase tracking-wider ${activeTab === 'ALL' ? 'text-gray-300' : 'text-gray-500'}`}>
+                Total Submissions
+              </div>
+              <div className="text-2xl font-black mt-1">{counts.total}</div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('PENDING')}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                activeTab === 'PENDING'
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-md ring-2 ring-amber-500/20'
+                  : 'bg-amber-50/60 border-amber-200 hover:border-amber-300 text-amber-900'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-semibold uppercase tracking-wider ${activeTab === 'PENDING' ? 'text-amber-100' : 'text-amber-700'}`}>
+                  Pending Review
+                </span>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              </div>
+              <div className="text-2xl font-black mt-1">{counts.pending}</div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('APPROVED')}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                activeTab === 'APPROVED'
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-md ring-2 ring-emerald-600/20'
+                  : 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300 text-emerald-900'
+              }`}
+            >
+              <div className={`text-xs font-semibold uppercase tracking-wider ${activeTab === 'APPROVED' ? 'text-emerald-100' : 'text-emerald-700'}`}>
+                Approved & Live
+              </div>
+              <div className="text-2xl font-black mt-1">{counts.approved}</div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('REJECTED')}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                activeTab === 'REJECTED'
+                  ? 'bg-rose-600 text-white border-rose-700 shadow-md ring-2 ring-rose-600/20'
+                  : 'bg-rose-50/60 border-rose-200 hover:border-rose-300 text-rose-900'
+              }`}
+            >
+              <div className={`text-xs font-semibold uppercase tracking-wider ${activeTab === 'REJECTED' ? 'text-rose-100' : 'text-rose-700'}`}>
+                Rejected
+              </div>
+              <div className="text-2xl font-black mt-1">{counts.rejected}</div>
+            </button>
+          </div>
+
+          {/* Filter Bar & Search */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 bg-gray-200/60 p-1 rounded-xl">
+              {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === tab
+                      ? 'bg-white text-gray-900 shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab === 'ALL' && `All (${counts.total})`}
+                  {tab === 'PENDING' && `Pending (${counts.pending})`}
+                  {tab === 'APPROVED' && `Approved (${counts.approved})`}
+                  {tab === 'REJECTED' && `Rejected (${counts.rejected})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80">
               <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
-                placeholder="Search by offering, SKU, enterprise, brand, category..."
+                placeholder="Search by offering, SKU, submitter, brand..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 shadow-xs"
+                className="w-full pl-9 pr-3.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 shadow-xs"
               />
             </div>
           </div>
@@ -258,22 +394,24 @@ export default function PendingApprovalsPage() {
             {isLoading ? (
               <div className="p-12 text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-black border-t-transparent" />
-                <p className="mt-2 text-xs font-medium text-gray-500">Loading pending offerings...</p>
+                <p className="mt-2 text-xs font-medium text-gray-500">Loading offerings...</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 mb-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400 mb-3">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
                 <h3 className="text-sm font-bold text-gray-900">
-                  {searchQuery ? 'No matching pending offerings' : 'All Caught Up!'}
+                  {searchQuery ? 'No matching offerings' : `No ${activeTab.toLowerCase()} offerings found`}
                 </h3>
                 <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
                   {searchQuery
-                    ? 'No pending offerings matched your search criteria.'
-                    : 'There are no pending offerings awaiting administrator approval at this time.'}
+                    ? 'No offerings matched your search criteria.'
+                    : activeTab === 'PENDING'
+                    ? 'All caught up! There are no offerings waiting for approval.'
+                    : `No offerings currently marked as ${activeTab.toLowerCase()}.`}
                 </p>
                 {searchQuery && (
                   <button
@@ -293,7 +431,8 @@ export default function PendingApprovalsPage() {
                       <th className="py-3 px-4">Submitted By</th>
                       <th className="py-3 px-4">Category & Brand</th>
                       <th className="py-3 px-4">Pricing & Stock</th>
-                      <th className="py-3 px-4">Full Details</th>
+                      <th className="py-3 px-4 text-center">Approval Status</th>
+                      <th className="py-3 px-4 text-center">Full Details</th>
                       <th className="py-3 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -308,6 +447,7 @@ export default function PendingApprovalsPage() {
                       const hasImage = Boolean(item.primary_image || gallery.length > 0);
                       const displayImg = item.primary_image || gallery[0] || '';
                       const totalPhotos = (item.primary_image ? 1 : 0) + gallery.filter((g) => g !== item.primary_image).length;
+                      const statusCat = getStatusCategory(item);
 
                       return (
                         <tr key={item.prod_id} className="hover:bg-gray-50/60 transition-colors">
@@ -413,8 +553,34 @@ export default function PendingApprovalsPage() {
                             </div>
                           </td>
 
+                          {/* Approval Status Badge */}
+                          <td className="py-3.5 px-4 text-center">
+                            {statusCat === 'PENDING' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                Pending Review
+                              </span>
+                            )}
+                            {statusCat === 'APPROVED' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Approved & Live
+                              </span>
+                            )}
+                            {statusCat === 'REJECTED' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                <svg className="w-3 h-3 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Rejected
+                              </span>
+                            )}
+                          </td>
+
                           {/* Full Details Modal Button */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 text-center">
                             <button
                               type="button"
                               onClick={() => openReviewModal(item)}
@@ -429,38 +595,75 @@ export default function PendingApprovalsPage() {
                             </button>
                           </td>
 
-                          {/* Action Buttons */}
+                          {/* Action Buttons (Centered) */}
                           <td className="py-3.5 px-4 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() => handleAction(item.prod_id, 'approve')}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-                                title="Approve and publish to Master Catalog"
-                              >
-                                {isBusy ? (
-                                  <span className="inline-block animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-                                ) : (
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                                Approve
-                              </button>
+                              {statusCat === 'PENDING' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleAction(item.prod_id, 'approve')}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                                    title="Approve and publish to Master Catalog"
+                                  >
+                                    {isBusy ? (
+                                      <span className="inline-block animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                                    ) : (
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                    Approve
+                                  </button>
 
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() => handleAction(item.prod_id, 'reject')}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-                                title="Reject this submission"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Reject
-                              </button>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleAction(item.prod_id, 'reject')}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                                    title="Reject this submission"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+
+                              {statusCat === 'APPROVED' && (
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/offerings?search=${encodeURIComponent(item.sku_id)}`}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-black hover:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-xs"
+                                    title="View in Master Catalog"
+                                  >
+                                    In Catalog
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleAction(item.prod_id, 'reject')}
+                                    className="px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-50 rounded border border-rose-200 font-semibold cursor-pointer"
+                                    title="Revoke approval and move to rejected"
+                                  >
+                                    Revoke
+                                  </button>
+                                </div>
+                              )}
+
+                              {statusCat === 'REJECTED' && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleAction(item.prod_id, 'approve')}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                                  title="Re-approve offering"
+                                >
+                                  Re-Approve
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -488,9 +691,28 @@ export default function PendingApprovalsPage() {
                       <span className="font-mono text-xs text-gray-600 bg-gray-200/80 px-2 py-0.5 rounded font-bold">
                         {reviewingItem.sku_id}
                       </span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                        Pending Approval
-                      </span>
+                      {(() => {
+                        const status = getStatusCategory(reviewingItem);
+                        if (status === 'APPROVED') {
+                          return (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                              Approved & Live
+                            </span>
+                          );
+                        }
+                        if (status === 'REJECTED') {
+                          return (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full">
+                              Rejected
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                            Pending Approval
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       Submitted by{' '}

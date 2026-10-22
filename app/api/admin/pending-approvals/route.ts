@@ -69,13 +69,39 @@ export async function GET(request: NextRequest) {
         u.role AS submitter_role
       FROM product p
       LEFT JOIN user u ON p.created_by = u.uuid
-      WHERE p.approval_status = 'PENDING' OR p.publishing_status = 'PENDING_APPROVAL'
+      WHERE u.role = 'ENTERPRISE' OR p.approval_status = 'PENDING' OR p.publishing_status = 'PENDING_APPROVAL' OR p.approval_status = 'REJECTED'
       ORDER BY p.prod_id DESC`
     );
+
+    // Compute status counts
+    let pendingCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+
+    for (const r of rows) {
+      const approval = String(r.approval_status || '').toUpperCase();
+      const publishing = String(r.publishing_status || '').toUpperCase();
+
+      if (approval === 'REJECTED' || publishing === 'REJECTED') {
+        rejectedCount++;
+      } else if (approval === 'PENDING' || publishing === 'PENDING_APPROVAL') {
+        pendingCount++;
+      } else if (approval === 'APPROVED' || publishing === 'PUBLISHED') {
+        approvedCount++;
+      } else {
+        pendingCount++;
+      }
+    }
 
     return NextResponse.json({
       success: true,
       count: rows.length,
+      counts: {
+        total: rows.length,
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+      },
       items: rows,
     });
   } catch (error: any) {
