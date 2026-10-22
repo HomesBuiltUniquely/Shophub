@@ -7,6 +7,7 @@ import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { offeringImageUrl } from '@/lib/media/offering-image';
+import OfferingActionsMenu from '@/components/offerings/OfferingActionsMenu';
 
 function getInitials(name = '') {
   const words = name.trim().split(/\s+/);
@@ -49,20 +50,6 @@ function OfferingThumb({
       )}
     </div>
   );
-}
-
-function openQuote(offering: OfferingResponse) {
-  const params = new URLSearchParams({
-    addToCart: 'true',
-    prodId: offering.prodId?.toString() || '',
-    offeringName: offering.offering_name || '',
-    price: offering.pricing?.selling_price?.toString() || '0',
-    cost: offering.pricing?.cost_price?.toString() || '0',
-    category: offering.product?.category || offering.category || 'GENERAL',
-    skuId: offering.sku_id || '',
-    image: offering.product?.image_url || offering.media?.primary_image || '',
-  });
-  window.location.href = `/quote-engine?${params.toString()}`;
 }
 
 export function OfferingGrid({
@@ -131,26 +118,9 @@ export function OfferingGrid({
                 <span className="text-xs font-medium text-emerald-700">{stock} in stock</span>
               </div>
               {!hideActions && (
-              <div
-                className="flex gap-2 pt-2"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  onClick={() => openQuote(offering)}
-                  className="flex-1 rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white"
-                >
-                  Quote
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/offerings/CreateOfferings?id=${offering.prodId || ''}`)}
-                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-800"
-                >
-                  Update
-                </button>
-              </div>
+                <div className="flex justify-end pt-1">
+                  <OfferingActionsMenu offering={offering} />
+                </div>
               )}
             </div>
           </div>
