@@ -310,14 +310,20 @@ export default function CreateOfferingModal({
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Publishing Status
               </label>
-              <select
-                value={publishingStatus}
-                onChange={(e) => setPublishingStatus(e.target.value as any)}
-                className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
-              >
-                <option value="PUBLISHED">PUBLISHED</option>
-                <option value="DRAFT">DRAFT</option>
-              </select>
+              {user?.role === 'enterprise' ? (
+                <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-800">
+                  Requires Admin Approval
+                </div>
+              ) : (
+                <select
+                  value={publishingStatus}
+                  onChange={(e) => setPublishingStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
+                >
+                  <option value="PUBLISHED">PUBLISHED</option>
+                  <option value="DRAFT">DRAFT</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -334,7 +340,9 @@ export default function CreateOfferingModal({
               disabled={isSubmitting}
               className="px-5 py-2 bg-black hover:bg-gray-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? 'Creating Offering...' : 'Create Offering'}
+              {isSubmitting
+                ? (user?.role === 'enterprise' ? 'Submitting for Approval...' : 'Creating Offering...')
+                : (user?.role === 'enterprise' ? 'Submit for Approval' : 'Create Offering')}
             </button>
           </div>
         </form>

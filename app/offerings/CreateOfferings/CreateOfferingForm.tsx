@@ -1344,7 +1344,13 @@ export default function CreateOfferingForm() {
             onClick={() => submit(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
-            {isSubmitting ? 'Saving...' : isPublished ? 'Update' : 'Publish Offering'}
+            {isSubmitting
+              ? (user?.role === 'enterprise' ? 'Submitting for Approval...' : 'Saving...')
+              : user?.role === 'enterprise'
+              ? 'Submit for Approval'
+              : isPublished
+              ? 'Update'
+              : 'Publish Offering'}
           </button>
         </div>
       </div>

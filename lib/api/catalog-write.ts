@@ -67,7 +67,18 @@ export function toSpringProductPayload(body: any) {
   };
 }
 
-export function localProductValues(payload: ReturnType<typeof toSpringProductPayload>, sessionId: number) {
+export function localProductValues(
+  payload: ReturnType<typeof toSpringProductPayload>,
+  sessionId: number,
+  sessionRole?: string
+) {
+  const isEnterprise = sessionRole === 'enterprise';
+  const isPublished = isEnterprise ? 0 : (payload.is_published ? 1 : 0);
+  const publishingStatus = isEnterprise
+    ? 'PENDING_APPROVAL'
+    : (payload.is_published ? 'PUBLISHED' : 'DRAFT');
+  const approvalStatus = isEnterprise ? 'PENDING' : 'APPROVED';
+
   return {
     offering_name: payload.offering_name,
     offering_type: payload.offering_type,
@@ -77,8 +88,9 @@ export function localProductValues(payload: ReturnType<typeof toSpringProductPay
     current_stock: Number(payload.inventory?.current_stock) || 0,
     selling_price: Number(payload.pricing?.selling_price) || 0,
     cost_price: Number(payload.pricing?.cost_price) || 0,
-    is_published: payload.is_published ? 1 : 0,
-    publishing_status: payload.is_published ? 'PUBLISHED' : 'DRAFT',
+    is_published: isPublished,
+    publishing_status: publishingStatus,
+    approval_status: approvalStatus,
     gallery_images: JSON.stringify(payload.media?.gallery_images || []),
     seo_keywords: JSON.stringify(payload.seo?.keywords || payload.tags || []),
     finish_type: payload.specifications?.material_finish?.finish_type || 'MATTE',
@@ -123,9 +135,18 @@ export async function createCatalogOffering(
     return { success: false as const, error: typeError, status: 403 };
   }
 
+  const isEnterprise = session.role === 'enterprise';
+  if (isEnterprise) {
+    payload.is_published = false;
+    if (payload.internal?.visibility_status) {
+      payload.internal.visibility_status.publishing_status = 'PENDING_APPROVAL';
+      payload.internal.visibility_status.visibility = false;
+    }
+  }
+
   await ensureAuthSchema();
   const pool = getHomesMerryDbPool();
-  const row = localProductValues(payload, session.id);
+  const row = localProductValues(payload, session.id, session.role);
   const lockName = `shophub:create:${session.id}:${createHash('sha256')
     .update(payload.sku_id)
     .digest('hex')
@@ -174,7 +195,7 @@ export async function createCatalogOffering(
     const [result] = await connection.query<ResultSetHeader>(
       `INSERT INTO product (
         offering_name, offering_type, sku_id, category, brand, current_stock,
-        selling_price, cost_price, is_published, publishing_status,
+        selling_price, cost_price, is_published, publishing_status, approval_status,
         gallery_images, additional_attributes, allowed_users, seo_keywords,
         finish_type, load_capacity, preferred_vendor, primary_material, secondary_material,
         restricted_region, gst_rate, price_unit, discount, lead_time, minimum_stock_level, reorder_quantity,
@@ -182,7 +203,7 @@ export async function createCatalogOffering(
         created_by, primary_image, page_title, meta_desc, url_slug, video_link, image_360, length_cm, width_cm, height_cm, weight_kg
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, '[]', ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
@@ -191,7 +212,7 @@ export async function createCatalogOffering(
       )`,
       [
         row.offering_name, row.offering_type, row.sku_id, row.category, row.brand, row.current_stock,
-        row.selling_price, row.cost_price, row.is_published, row.publishing_status,
+        row.selling_price, row.cost_price, row.is_published, row.publishing_status, row.approval_status,
         row.gallery_images, JSON.stringify(payload.internal?.access_permissions?.allowed_users || ['admin@example.com']), row.seo_keywords,
         row.finish_type, row.load_capacity, row.preferred_vendor, row.primary_material, row.secondary_material,
         payload.internal?.access_permissions?.restricted_region || 'NONE', row.gst_rate, row.price_unit, row.discount, row.lead_time, row.minimum_stock_level, row.reorder_quantity,
@@ -213,7 +234,9 @@ export async function createCatalogOffering(
 
     return {
       success: true as const,
-      message: payload.is_published
+      message: isEnterprise
+        ? `Offering "${payload.offering_name}" submitted for Admin approval.`
+        : payload.is_published
         ? `Offering "${payload.offering_name}" published`
         : `Draft "${payload.offering_name}" saved`,
       prodId: springId || result.insertId,

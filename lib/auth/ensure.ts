@@ -43,6 +43,15 @@ export async function ensureAuthSchema() {
     await pool.query(`ALTER TABLE product ADD COLUMN created_by BIGINT NULL`);
   }
 
+  const [approvalCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM product LIKE 'approval_status'`);
+  if (approvalCols.length === 0) {
+    try {
+      await pool.query(`ALTER TABLE product ADD COLUMN approval_status VARCHAR(32) DEFAULT 'APPROVED'`);
+    } catch (error: any) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
+  }
+
   const [userCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM user LIKE 'lead_id'`);
   if (userCols.length === 0) {
     try {
