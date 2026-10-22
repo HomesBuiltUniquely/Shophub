@@ -120,8 +120,8 @@ export function useSingleOffering(prodId: string | number = ''): SingleOfferingS
             specifications: enrichedProd.specifications || catEntity.specifications,
             internal: enrichedProd.internal || catEntity.internal,
             media: enrichedProd.media || catEntity.media,
-            seo: enrichedProd.seo || catEntity.seo,
-            long_desc: enrichedProd.long_desc || catEntity.long_desc,
+            long_desc: enrichedProd.long_desc || catEntity.long_desc || (catEntity as any)?.longDescription,
+            short_desc: enrichedProd.short_desc || catEntity.short_desc || (catEntity as any)?.shortDescription || (catEntity as any)?.description,
           };
         }
       }

@@ -234,6 +234,7 @@ export async function createCatalogOffering(
   }
 }
 
+
 function uniqueProductKeys(raw: unknown): string[] {
   const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
   return [

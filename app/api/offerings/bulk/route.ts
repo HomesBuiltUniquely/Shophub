@@ -29,10 +29,13 @@ export async function POST(request: NextRequest) {
       springToken: request.cookies.get(SPRING_TOKEN_COOKIE)?.value,
     });
     return NextResponse.json(result, { status: result.success ? 200 : result.status || 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API /api/offerings/bulk POST]', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to update products.' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update products.',
+      },
       { status: 500 }
     );
   }

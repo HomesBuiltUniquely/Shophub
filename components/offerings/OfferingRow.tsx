@@ -7,6 +7,7 @@ import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { offeringImageUrl } from '@/lib/media/offering-image';
+import OfferingInfoButton from '@/components/offerings/OfferingInfoButton';
 import OfferingActionsMenu from './OfferingActionsMenu';
 
 interface OfferingRowProps {
@@ -116,8 +117,18 @@ export default function OfferingRow({
             )}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-bold text-gray-900 group-hover:text-black transition-colors truncate">
-              {offering.offering_name}
+            <div className="flex items-center gap-1.5">
+              <div className="text-sm font-bold text-gray-900 group-hover:text-black transition-colors truncate">
+                {offering.offering_name}
+              </div>
+              <OfferingInfoButton
+                offeringName={offering.offering_name}
+                skuId={offering.sku_id}
+                prodId={offering.prodId}
+                shortDesc={offering.short_desc || (offering as any).description}
+                longDesc={offering.long_desc || (offering as any).longDescription}
+                buttonSize="xs"
+              />
             </div>
             <div className="text-xs text-gray-500 font-normal truncate mt-0.5">
               {subCategoryTitle}
