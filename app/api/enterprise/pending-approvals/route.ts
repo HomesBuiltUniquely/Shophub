@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         p.is_published,
         p.publishing_status,
         p.approval_status,
+        p.rejection_reason,
         p.primary_image,
         p.gallery_images,
         p.short_desc,
