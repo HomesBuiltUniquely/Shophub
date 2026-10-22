@@ -52,6 +52,15 @@ export async function ensureAuthSchema() {
     }
   }
 
+  const [rejectCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM product LIKE 'rejection_reason'`);
+  if (rejectCols.length === 0) {
+    try {
+      await pool.query(`ALTER TABLE product ADD COLUMN rejection_reason TEXT NULL`);
+    } catch (error: any) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
+  }
+
   const [userCols] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM user LIKE 'lead_id'`);
   if (userCols.length === 0) {
     try {

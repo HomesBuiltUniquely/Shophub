@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         p.is_published,
         p.publishing_status,
         p.approval_status,
+        p.rejection_reason,
         p.primary_image,
         p.gallery_images,
         p.short_desc,
@@ -162,14 +163,16 @@ export async function POST(request: NextRequest) {
     const newApprovalStatus = isApprove ? 'APPROVED' : 'REJECTED';
     const newPublishingStatus = isApprove ? 'PUBLISHED' : 'REJECTED';
     const newIsPublished = isApprove ? 1 : 0;
+    const rejectionReason = isApprove ? null : (notes || 'Rejected by administrator');
 
     await pool.query<ResultSetHeader>(
       `UPDATE product
        SET approval_status = ?,
            publishing_status = ?,
-           is_published = ?
+           is_published = ?,
+           rejection_reason = ?
        WHERE prod_id = ?`,
-      [newApprovalStatus, newPublishingStatus, newIsPublished, prodId]
+      [newApprovalStatus, newPublishingStatus, newIsPublished, rejectionReason, prodId]
     );
 
     // Sync to Spring Boot if available
@@ -191,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     const message = isApprove
       ? `Offering "${current.offering_name}" has been approved and published to the Enterprise Master Catalog.`
-      : `Offering "${current.offering_name}" has been rejected.`;
+      : `Offering "${current.offering_name}" has been rejected. Reason: "${rejectionReason}"`;
 
     return NextResponse.json({
       success: true,
@@ -201,6 +204,7 @@ export async function POST(request: NextRequest) {
       approval_status: newApprovalStatus,
       publishing_status: newPublishingStatus,
       is_published: Boolean(newIsPublished),
+      rejection_reason: rejectionReason,
       notes,
       spring: springSync,
     });

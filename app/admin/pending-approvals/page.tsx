@@ -27,6 +27,7 @@ interface PendingOffering {
   is_published: number;
   publishing_status: string;
   approval_status: string;
+  rejection_reason?: string;
   primary_image?: string;
   gallery_images?: string;
   short_desc?: string;
@@ -68,6 +69,14 @@ function getStatusCategory(item: PendingOffering): 'PENDING' | 'APPROVED' | 'REJ
   return 'PENDING';
 }
 
+const QUICK_REJECTION_REASONS = [
+  'Missing high-resolution primary photo',
+  'Pricing or commercial terms need review',
+  'Incomplete physical dimensions / specifications',
+  'Incorrect category or brand classification',
+  'Product description requires more detail',
+];
+
 export default function PendingApprovalsPage() {
   const router = useRouter();
   const user = useCurrentUser();
@@ -80,6 +89,8 @@ export default function PendingApprovalsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [reviewingItem, setReviewingItem] = useState<PendingOffering | null>(null);
   const [activeImage, setActiveImage] = useState<string>('');
+  const [rejectModalItem, setRejectModalItem] = useState<PendingOffering | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState<string>('');
 
   const fetchPending = async () => {
     setIsLoading(true);
@@ -108,7 +119,7 @@ export default function PendingApprovalsPage() {
     }
   }, [user, router]);
 
-  const handleAction = async (prodId: number, action: 'approve' | 'reject') => {
+  const handleAction = async (prodId: number, action: 'approve' | 'reject', notes?: string) => {
     setBusyProdId(prodId);
     setActionSuccess(null);
     setError(null);
@@ -117,7 +128,7 @@ export default function PendingApprovalsPage() {
       const res = await fetch('/api/admin/pending-approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prodId, action }),
+        body: JSON.stringify({ prodId, action, notes }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -125,6 +136,8 @@ export default function PendingApprovalsPage() {
       }
 
       setActionSuccess(data.message);
+      const updatedReason = action === 'approve' ? undefined : (notes || 'Rejected by administrator');
+
       // Update item status in-place so counts and tabs update seamlessly
       setItems((prev) =>
         prev.map((item) =>
@@ -134,6 +147,7 @@ export default function PendingApprovalsPage() {
                 approval_status: action === 'approve' ? 'APPROVED' : 'REJECTED',
                 publishing_status: action === 'approve' ? 'PUBLISHED' : 'REJECTED',
                 is_published: action === 'approve' ? 1 : 0,
+                rejection_reason: updatedReason,
               }
             : item
         )
@@ -147,6 +161,7 @@ export default function PendingApprovalsPage() {
                 approval_status: action === 'approve' ? 'APPROVED' : 'REJECTED',
                 publishing_status: action === 'approve' ? 'PUBLISHED' : 'REJECTED',
                 is_published: action === 'approve' ? 1 : 0,
+                rejection_reason: updatedReason,
               }
             : null
         );
@@ -162,6 +177,19 @@ export default function PendingApprovalsPage() {
     setReviewingItem(item);
     const gallery = parseGallery(item.gallery_images);
     setActiveImage(item.primary_image || gallery[0] || '');
+  };
+
+  const openRejectModal = (item: PendingOffering) => {
+    setRejectModalItem(item);
+    setRejectReasonInput(item.rejection_reason || '');
+  };
+
+  const confirmRejection = async () => {
+    if (!rejectModalItem) return;
+    const prodId = rejectModalItem.prod_id;
+    const reason = rejectReasonInput.trim() || 'Rejected by administrator';
+    setRejectModalItem(null);
+    await handleAction(prodId, 'reject', reason);
   };
 
   // Status counts
@@ -288,7 +316,7 @@ export default function PendingApprovalsPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* 4 SUMMARY METRIC CARDS (Exact same as enterprise tracker) */}
+          {/* 4 SUMMARY METRIC CARDS */}
           {/* ========================================================================= */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button
@@ -570,12 +598,22 @@ export default function PendingApprovalsPage() {
                               </span>
                             )}
                             {statusCat === 'REJECTED' && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                                <svg className="w-3 h-3 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Rejected
-                              </span>
+                              <div className="inline-flex flex-col items-center">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                  <svg className="w-3 h-3 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Rejected
+                                </span>
+                                {item.rejection_reason && (
+                                  <div
+                                    className="text-[10px] text-rose-700 font-medium mt-1 max-w-[150px] truncate"
+                                    title={item.rejection_reason}
+                                  >
+                                    Note: "{item.rejection_reason}"
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
 
@@ -620,9 +658,9 @@ export default function PendingApprovalsPage() {
                                   <button
                                     type="button"
                                     disabled={isBusy}
-                                    onClick={() => handleAction(item.prod_id, 'reject')}
+                                    onClick={() => openRejectModal(item)}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-                                    title="Reject this submission"
+                                    title="Reject this submission and provide feedback"
                                   >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -644,9 +682,9 @@ export default function PendingApprovalsPage() {
                                   <button
                                     type="button"
                                     disabled={isBusy}
-                                    onClick={() => handleAction(item.prod_id, 'reject')}
+                                    onClick={() => openRejectModal(item)}
                                     className="px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-50 rounded border border-rose-200 font-semibold cursor-pointer"
-                                    title="Revoke approval and move to rejected"
+                                    title="Revoke approval and provide rejection reason"
                                   >
                                     Revoke
                                   </button>
@@ -675,6 +713,94 @@ export default function PendingApprovalsPage() {
             )}
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* REJECTION REASON MODAL */}
+        {/* ========================================================================= */}
+        {rejectModalItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-rose-50/50">
+                <div className="flex items-center gap-2 text-rose-800">
+                  <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h3 className="font-bold text-sm text-gray-900">Reason for Rejection</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRejectModalItem(null)}
+                  className="text-gray-400 hover:text-gray-700 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <div className="font-bold text-gray-900 text-sm">{rejectModalItem.offering_name}</div>
+                  <div className="text-xs text-gray-500 font-mono mt-0.5">SKU: {rejectModalItem.sku_id}</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Submitted by: <span className="font-semibold text-gray-800">{rejectModalItem.submitter_brand || rejectModalItem.submitter_email}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                    Note for Enterprise User <span className="text-rose-500">*</span>
+                  </label>
+                  <p className="text-[11px] text-gray-500 mb-2">
+                    This note will be displayed directly on the Enterprise user's tracker page so they understand what changes are needed.
+                  </p>
+                  <textarea
+                    rows={3}
+                    value={rejectReasonInput}
+                    onChange={(e) => setRejectReasonInput(e.target.value)}
+                    placeholder="E.g., Please provide high-resolution photos and verify the cost pricing..."
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400"
+                  />
+                </div>
+
+                {/* Quick Suggestion Chips */}
+                <div>
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Quick Suggestions:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_REJECTION_REASONS.map((chip, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setRejectReasonInput(chip)}
+                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRejectModalItem(null)}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busyProdId === rejectModalItem.prod_id}
+                  onClick={confirmRejection}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  Confirm Rejection & Send Note
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* REVIEW FULL OFFERING DETAILS MODAL */}
@@ -708,7 +834,7 @@ export default function PendingApprovalsPage() {
                           );
                         }
                         return (
-                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
                             Pending Approval
                           </span>
                         );
@@ -736,6 +862,18 @@ export default function PendingApprovalsPage() {
                   </svg>
                 </button>
               </div>
+
+              {/* Rejection Note Alert Banner in Review Modal */}
+              {reviewingItem.rejection_reason && getStatusCategory(reviewingItem) === 'REJECTED' && (
+                <div className="px-6 py-3 bg-rose-50 border-b border-rose-200 text-xs text-rose-900 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <span className="font-bold">Rejection Note sent to Enterprise:</span> "{reviewingItem.rejection_reason}"
+                  </div>
+                </div>
+              )}
 
               {/* Modal Body */}
               <div className="p-6 overflow-y-auto space-y-6 flex-1">
@@ -949,7 +1087,7 @@ export default function PendingApprovalsPage() {
                   <button
                     type="button"
                     disabled={busyProdId === reviewingItem.prod_id}
-                    onClick={() => handleAction(reviewingItem.prod_id, 'reject')}
+                    onClick={() => openRejectModal(reviewingItem)}
                     className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     Reject Offering

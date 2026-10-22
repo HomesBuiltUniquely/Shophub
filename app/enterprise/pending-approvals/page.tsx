@@ -39,6 +39,7 @@ interface EnterpriseSubmission {
   width_cm?: number;
   height_cm?: number;
   weight_kg?: number;
+  rejection_reason?: string;
   created_by?: number;
 }
 
@@ -464,7 +465,13 @@ export default function EnterprisePendingApprovalsPage() {
                                   </svg>
                                   Rejected
                                 </span>
-                                <span className="text-[10px] text-rose-600 font-semibold mt-1">Action Required</span>
+                                {item.rejection_reason ? (
+                                  <div className="mt-1.5 p-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[10px] text-rose-800 max-w-[200px] text-left leading-tight" title={item.rejection_reason}>
+                                    <span className="font-bold">Reason:</span> &ldquo;{item.rejection_reason}&rdquo;
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-rose-600 font-semibold mt-1">Action Required</span>
+                                )}
                               </div>
                             )}
                           </td>
@@ -594,11 +601,21 @@ export default function EnterprisePendingApprovalsPage() {
                   }
                   if (status === 'REJECTED') {
                     return (
-                      <div className="text-rose-800 font-semibold flex items-center gap-1.5">
-                        <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        This submission was rejected by the administrator. Please review the details or edit and resubmit.
+                      <div className="text-rose-900 font-medium text-xs flex flex-col gap-1 w-full">
+                        <div className="flex items-center gap-1.5 font-bold text-rose-800 text-sm">
+                          <svg className="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span>Submission Rejected by Administrator</span>
+                        </div>
+                        {reviewingItem.rejection_reason && (
+                          <div className="mt-1 p-2.5 bg-rose-100/80 border border-rose-200 rounded-lg text-rose-900 text-xs">
+                            <span className="font-bold">Admin Feedback / Rejection Note:</span> &ldquo;{reviewingItem.rejection_reason}&rdquo;
+                          </div>
+                        )}
+                        <span className="text-[11px] text-rose-700 mt-0.5">
+                          Please review the administrator feedback above and click &quot;Edit & Resubmit&quot; below to make necessary changes.
+                        </span>
                       </div>
                     );
                   }
