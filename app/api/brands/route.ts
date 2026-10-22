@@ -26,6 +26,7 @@ import {
   mapSpringBrandToEntity,
   formatOfferingsCount,
   SpringBrandResDTO,
+  BrandStatusType,
 } from '@/lib/api/brand.service';
 
 const SPRING_BOOT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
@@ -356,14 +357,15 @@ export async function PATCH(request: NextRequest) {
     } catch {}
 
     const nextCountry = country || existing.country;
-    const nextStatus = (status || existing.status || 'ACTIVE').toUpperCase();
+    const nextStatus: BrandStatusType =
+      String(status || existing.status || 'ACTIVE').toUpperCase() === 'DRAFT' ? 'DRAFT' : 'ACTIVE';
     const next = {
       brand_name: brand_name || existing.brand_name,
       manufacturer: manufacturer || existing.manufacturer,
       code: String(code || existing.code).toUpperCase(),
       country: nextCountry,
       country_code: countryCodeFor(nextCountry, country_code || existing.country_code),
-      status: nextStatus === 'DRAFT' ? 'DRAFT' : 'ACTIVE',
+      status: nextStatus,
       categories: Array.isArray(categories) && categories.length ? categories : existingCats,
       logo_url: String(logo_url || existing.logo_url || '').trim() || '/brands/default.svg',
       offerings_count:
