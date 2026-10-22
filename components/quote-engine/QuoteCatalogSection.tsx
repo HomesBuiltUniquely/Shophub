@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import OfferingInfoButton from '@/components/offerings/OfferingInfoButton';
 
 export interface CatalogProduct {
   prodId: number;
@@ -9,6 +10,7 @@ export interface CatalogProduct {
   sku_id: string;
   brand?: string;
   short_desc?: string;
+  long_desc?: string;
   pricing?: {
     selling_price: number;
     cost_price?: number;
@@ -227,7 +229,17 @@ export default function QuoteCatalogSection({
                   <div className="p-3.5 flex flex-col flex-1 justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-1">
-                        <h3 className="text-xs font-bold text-gray-900 line-clamp-1">{prod.offering_name}</h3>
+                        <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                          <h3 className="text-xs font-bold text-gray-900 truncate">{prod.offering_name}</h3>
+                          <OfferingInfoButton
+                            offeringName={prod.offering_name}
+                            skuId={prod.sku_id}
+                            prodId={prod.prodId}
+                            shortDesc={prod.short_desc}
+                            longDesc={prod.long_desc}
+                            buttonSize="xs"
+                          />
+                        </div>
                         {prod.sku_id && (
                           <span className="text-[9px] font-mono font-medium text-gray-500 bg-gray-100 px-1 py-0.5 rounded shrink-0">{prod.sku_id}</span>
                         )}

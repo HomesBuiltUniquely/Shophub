@@ -230,6 +230,7 @@ function ClientOfferingDetailContent() {
                     brand={brand}
                     sku={sku}
                     shortDesc={shortDesc}
+                    longDesc={longDesc}
                     tags={tags}
                     keywords={keywords}
                   />

@@ -11,6 +11,8 @@ export interface QuoteItemModel {
   totalPrice?: number;
   costPrice?: number;
   imageUrl?: string;
+  shortDesc?: string;
+  longDesc?: string;
 }
 
 export interface QuoteModel {

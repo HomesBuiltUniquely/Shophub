@@ -74,8 +74,8 @@ export default function OfferingDetailView({
     product?.seo?.keywords && product.seo.keywords.length > 0
       ? product.seo.keywords
       : tags;
-  const shortDesc = product?.short_desc;
-  const longDesc = product?.long_desc;
+  const shortDesc = product?.short_desc || (product as any)?.shortDescription || (product as any)?.description || '';
+  const longDesc = product?.long_desc || (product as any)?.longDescription || '';
 
   // Inventory fields
   const inventory = product?.inventory;

@@ -9,11 +9,26 @@ import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 interface OfferingTableProps {
   offerings: OfferingResponse[];
   isLoading?: boolean;
+  canSelect?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (prodId: string, selected: boolean) => void;
+  onToggleSelectAll?: (selected: boolean) => void;
 }
 
-export default function OfferingTable({ offerings, isLoading = false }: OfferingTableProps) {
+export default function OfferingTable({
+  offerings,
+  isLoading = false,
+  canSelect = false,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+}: OfferingTableProps) {
   const user = useCurrentUser();
   const hideActions = isInternalStaff(user);
+  const selectedSet = new Set(selectedIds);
+  const pageIds = offerings.map((item) => String(item.prodId || '')).filter(Boolean);
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedSet.has(id));
+  const someSelected = pageIds.some((id) => selectedSet.has(id));
 
   if (offerings.length === 0) {
     return (
@@ -34,6 +49,20 @@ export default function OfferingTable({ offerings, isLoading = false }: Offering
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50/70 border-b border-gray-200">
             <tr>
+              {canSelect && (
+                <th scope="col" className="px-4 py-3.5">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allSelected && someSelected;
+                    }}
+                    onChange={(e) => onToggleSelectAll?.(e.target.checked)}
+                    aria-label="Select all products on this page"
+                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  />
+                </th>
+              )}
               <th
                 scope="col"
                 className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider"
@@ -100,7 +129,13 @@ export default function OfferingTable({ offerings, isLoading = false }: Offering
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             {offerings.map((offering) => (
-              <OfferingRow key={offering.prodId} offering={offering} />
+              <OfferingRow
+                key={offering.prodId}
+                offering={offering}
+                canSelect={canSelect}
+                selected={selectedSet.has(String(offering.prodId || ''))}
+                onToggleSelect={onToggleSelect}
+              />
             ))}
           </tbody>
         </table>

@@ -7,9 +7,13 @@ import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { offeringImageUrl } from '@/lib/media/offering-image';
+import OfferingInfoButton from '@/components/offerings/OfferingInfoButton';
 
 interface OfferingRowProps {
   offering: OfferingResponse;
+  canSelect?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (prodId: string, selected: boolean) => void;
 }
 
 // Generate 2-letter uppercase initials from offering name
@@ -22,10 +26,16 @@ function getInitials(name: string = ''): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function OfferingRow({ offering }: OfferingRowProps) {
+export default function OfferingRow({
+  offering,
+  canSelect = false,
+  selected = false,
+  onToggleSelect,
+}: OfferingRowProps) {
   const router = useRouter();
   const user = useCurrentUser();
   const hideActions = isInternalStaff(user);
+  const prodId = String(offering.prodId || '');
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl = offeringImageUrl(
     offering.product?.image_url,
@@ -71,8 +81,21 @@ export default function OfferingRow({ offering }: OfferingRowProps) {
       }}
       tabIndex={0}
       role="button"
-      className="border-b border-gray-100 hover:bg-gray-50/80 cursor-pointer transition-colors group focus:outline-none focus:bg-gray-50"
+      className={`border-b border-gray-100 hover:bg-gray-50/80 cursor-pointer transition-colors group focus:outline-none focus:bg-gray-50 ${
+        selected ? 'bg-emerald-50/60' : ''
+      }`}
     >
+      {canSelect && (
+        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => onToggleSelect?.(prodId, e.target.checked)}
+            aria-label={`Select ${offering.offering_name}`}
+            className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+          />
+        </td>
+      )}
       {/* 1. OFFERING NAME with Avatar Badge & Subtitle */}
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
@@ -93,8 +116,18 @@ export default function OfferingRow({ offering }: OfferingRowProps) {
             )}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-bold text-gray-900 group-hover:text-black transition-colors truncate">
-              {offering.offering_name}
+            <div className="flex items-center gap-1.5">
+              <div className="text-sm font-bold text-gray-900 group-hover:text-black transition-colors truncate">
+                {offering.offering_name}
+              </div>
+              <OfferingInfoButton
+                offeringName={offering.offering_name}
+                skuId={offering.sku_id}
+                prodId={offering.prodId}
+                shortDesc={offering.short_desc || (offering as any).description}
+                longDesc={offering.long_desc || (offering as any).longDescription}
+                buttonSize="xs"
+              />
             </div>
             <div className="text-xs text-gray-500 font-normal truncate mt-0.5">
               {subCategoryTitle}

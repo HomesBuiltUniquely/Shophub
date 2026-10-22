@@ -19,6 +19,8 @@
 import React, { useRef, useState } from 'react';
 import { BrandEntity } from '@/lib/db/homesmerry';
 import { generateSku } from '@/lib/utils/sku';
+import { canCreateService } from '@/lib/catalog/offering-type';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 interface CreateOfferingModalProps {
   isOpen: boolean;
@@ -34,6 +36,8 @@ export default function CreateOfferingModal({
   brands,
   onOfferingCreated,
 }: CreateOfferingModalProps) {
+  const user = useCurrentUser();
+  const allowService = canCreateService(user);
   const [offeringName, setOfferingName] = useState('');
   const [offeringType, setOfferingType] = useState<'PRODUCT' | 'SERVICE' | 'BUNDLE'>('PRODUCT');
   const [skuId, setSkuId] = useState('');
@@ -103,7 +107,7 @@ export default function CreateOfferingModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           offering_name: offeringName,
-          offering_type: offeringType,
+          offering_type: !allowService && offeringType === 'SERVICE' ? 'PRODUCT' : offeringType,
           sku_id: skuId.toUpperCase(),
           category,
           brand: selectedBrand,
@@ -179,12 +183,12 @@ export default function CreateOfferingModal({
                 Offering Type
               </label>
               <select
-                value={offeringType}
+                value={!allowService && offeringType === 'SERVICE' ? 'PRODUCT' : offeringType}
                 onChange={(e) => setOfferingType(e.target.value as any)}
                 className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
               >
                 <option value="PRODUCT">PRODUCT</option>
-                <option value="SERVICE">SERVICE</option>
+                {allowService && <option value="SERVICE">SERVICE</option>}
                 <option value="BUNDLE">BUNDLE</option>
               </select>
             </div>

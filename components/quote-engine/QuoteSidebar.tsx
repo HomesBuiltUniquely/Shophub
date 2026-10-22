@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { QuoteItemModel, QuoteModel } from '@/lib/types/quote.types';
+import OfferingInfoButton from '@/components/offerings/OfferingInfoButton';
 
 interface QuoteSidebarProps {
   quote: QuoteModel | null;
@@ -163,8 +164,18 @@ export default function QuoteSidebar({
                         {/* Details & Controls */}
                         <div className="flex-1 min-w-0 pr-4">
                           <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="text-xs font-bold text-gray-900 truncate">{item.offeringName}</h4>
+                            <div className="min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-xs font-bold text-gray-900 truncate">{item.offeringName}</h4>
+                                <OfferingInfoButton
+                                  offeringName={item.offeringName}
+                                  skuId={item.skuId}
+                                  prodId={item.prodId}
+                                  shortDesc={item.shortDesc}
+                                  longDesc={item.longDesc}
+                                  buttonSize="xs"
+                                />
+                              </div>
                               {item.skuId && (
                                 <span className="text-[10px] font-mono text-gray-400">{item.skuId}</span>
                               )}

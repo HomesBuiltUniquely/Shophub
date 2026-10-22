@@ -430,7 +430,8 @@ function QuoteEngineContent() {
                     category: product.category || category.primaryCategoryName || 'GENERAL',
                     sku_id: product.sku_id || '',
                     brand: product.brand || '',
-                    short_desc: product.description || '',
+                    short_desc: product.short_desc || product.shortDescription || product.description || '',
+                    long_desc: product.long_desc || product.longDescription || '',
                     pricing: {
                       selling_price: product.pricing?.selling_price || 0,
                       cost_price: product.pricing?.cost_price || 0,
@@ -466,7 +467,8 @@ function QuoteEngineContent() {
                     category: product.category || category.secondaryCategoryName || 'GENERAL',
                     sku_id: product.sku_id || '',
                     brand: product.brand || '',
-                    short_desc: product.description || '',
+                    short_desc: product.short_desc || product.shortDescription || product.description || '',
+                    long_desc: product.long_desc || product.longDescription || '',
                     pricing: {
                       selling_price: product.pricing?.selling_price || 0,
                       cost_price: product.pricing?.cost_price || 0,
@@ -498,7 +500,8 @@ function QuoteEngineContent() {
               category: product.category || 'GENERAL',
               sku_id: product.sku_id || '',
               brand: product.brand || '',
-              short_desc: product.short_desc || product.description || '',
+              short_desc: product.short_desc || product.shortDescription || product.description || '',
+              long_desc: product.long_desc || product.longDescription || '',
               pricing: {
                 selling_price: product.pricing?.selling_price || 0,
                 cost_price: product.pricing?.cost_price || 0,
@@ -722,6 +725,8 @@ function QuoteEngineContent() {
           totalPrice: price * quantity,
           costPrice: cost,
           imageUrl: product.media?.primary_image || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400',
+          shortDesc: product.short_desc,
+          longDesc: (product as any).long_desc || (product as any).longDescription,
         };
         updatedItems = [...prev.items, newItem];
       }
