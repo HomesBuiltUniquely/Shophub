@@ -53,6 +53,7 @@ export default function BrandsMasterPage() {
 
   // Separate distinct modals for each button
   const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState<boolean>(false);
+  const [editingBrand, setEditingBrand] = useState<BrandEntity | null>(null);
   const [isCreateOfferingModalOpen, setIsCreateOfferingModalOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState<boolean>(false);
@@ -180,7 +181,10 @@ export default function BrandsMasterPage() {
 
               {/* ADD BRAND Button */}
               <button
-                onClick={() => setIsAddBrandModalOpen(true)}
+                onClick={() => {
+                  setEditingBrand(null);
+                  setIsAddBrandModalOpen(true);
+                }}
                 className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-black hover:bg-gray-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
               >
                 <span className="text-sm font-extrabold leading-none">+</span>
@@ -215,6 +219,11 @@ export default function BrandsMasterPage() {
             brands={brands}
             isLoading={isLoading}
             onBrandClick={(b) => setSelectedBrand(b)}
+            onEditBrand={(b) => {
+              setSelectedBrand(null);
+              setEditingBrand(b);
+              setIsAddBrandModalOpen(true);
+            }}
           />
 
           {/* 7. Live Dynamic Pagination Footer */}
@@ -242,12 +251,21 @@ export default function BrandsMasterPage() {
           fetchBrands();
           setSelectedBrand(null);
         }}
+        onEdit={(b) => {
+          setSelectedBrand(null);
+          setEditingBrand(b);
+          setIsAddBrandModalOpen(true);
+        }}
       />
 
-      {/* 2. Add Brand Modal (for ADD BRAND button) */}
+      {/* 2. Add / Edit Brand Modal */}
       <AddBrandModal
         isOpen={isAddBrandModalOpen}
-        onClose={() => setIsAddBrandModalOpen(false)}
+        brand={editingBrand}
+        onClose={() => {
+          setIsAddBrandModalOpen(false);
+          setEditingBrand(null);
+        }}
         onBrandCreated={fetchBrands}
       />
 

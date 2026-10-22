@@ -30,6 +30,31 @@ import {
 
 const SPRING_BOOT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
+function countryCodeFor(country: string, fallback?: string) {
+  const map: Record<string, string> = {
+    Italy: 'IT',
+    Sweden: 'SE',
+    Spain: 'ES',
+    Germany: 'DE',
+    India: 'IN',
+    Denmark: 'DK',
+    Japan: 'JP',
+    Switzerland: 'CH',
+    USA: 'US',
+    France: 'FR',
+    UK: 'GB',
+  };
+  return fallback || map[country] || 'IN';
+}
+
+function formatBrandDate(date = new Date()) {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -225,7 +250,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { brand_name, manufacturer, code, country, country_code, status, categories, offerings_count } = body;
+    const { brand_name, manufacturer, code, country, country_code, status, categories, offerings_count, logo_url } =
+      body;
 
     if (!brand_name || !code) {
       return NextResponse.json(
@@ -236,9 +262,10 @@ export async function POST(request: NextRequest) {
 
     const cleanCode = code.toUpperCase();
     const cleanCountry = country || 'Italy';
-    const cleanCountryCode = country_code || (cleanCountry === 'Sweden' ? 'SE' : cleanCountry === 'Spain' ? 'ES' : cleanCountry === 'Germany' ? 'DE' : 'IT');
+    const cleanCountryCode = countryCodeFor(cleanCountry, country_code);
     const cleanCategories = categories && categories.length > 0 ? categories : ['FURNITURE'];
     const cleanStatus = status === 'DRAFT' ? 'DRAFT' : 'ACTIVE';
+    const cleanLogo = String(logo_url || '').trim() || '/brands/default.svg';
 
     // 1. Dispatch to Spring Boot backend
     try {
@@ -250,7 +277,7 @@ export async function POST(request: NextRequest) {
         country_code: cleanCountryCode,
         status: cleanStatus,
         categories: cleanCategories,
-        logo_url: '/brands/default.svg',
+        logo_url: cleanLogo,
       });
 
       if (springRes && springRes.brand_id) {
@@ -268,12 +295,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Direct DB fallback
     const pool = getHomesMerryDbPool();
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const formattedDate = formatBrandDate();
 
     const [result]: any = await pool.query(
       `INSERT INTO brands (brand_name, manufacturer, code, country, country_code, offerings_count, categories, status, logo_url, updated_date)
@@ -287,7 +309,7 @@ export async function POST(request: NextRequest) {
         offerings_count || 10,
         JSON.stringify(cleanCategories),
         cleanStatus,
-        '/brands/default.svg',
+        cleanLogo,
         formattedDate,
       ]
     );
@@ -310,7 +332,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, brand_name, code, manufacturer, country, categories } = body;
+    const { id, status, brand_name, code, manufacturer, country, country_code, categories, logo_url, offerings_count } =
+      body;
 
     if (!id) {
       return NextResponse.json(
@@ -319,53 +342,78 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const cleanStatus = status?.toUpperCase() || 'ACTIVE';
+    const pool = getHomesMerryDbPool();
+    const [existingRows]: any = await pool.query('SELECT * FROM brands WHERE id = ?', [id]);
+    const existing = existingRows?.[0];
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Brand not found.' }, { status: 404 });
+    }
 
-    // 1. Attempt Spring Boot backend update
+    let existingCats: string[] = ['FURNITURE'];
     try {
-      // First get existing brand data to preserve fields
-      const pool = getHomesMerryDbPool();
-      const [existingRows]: any = await pool.query('SELECT * FROM brands WHERE id = ?', [id]);
-      const existing = existingRows?.[0];
+      existingCats =
+        typeof existing.categories === 'string' ? JSON.parse(existing.categories) : existing.categories || existingCats;
+    } catch {}
 
-      if (existing) {
-        let existingCats: string[] = ['FURNITURE'];
-        try {
-          existingCats = JSON.parse(existing.categories);
-        } catch {}
+    const nextCountry = country || existing.country;
+    const nextStatus = (status || existing.status || 'ACTIVE').toUpperCase();
+    const next = {
+      brand_name: brand_name || existing.brand_name,
+      manufacturer: manufacturer || existing.manufacturer,
+      code: String(code || existing.code).toUpperCase(),
+      country: nextCountry,
+      country_code: countryCodeFor(nextCountry, country_code || existing.country_code),
+      status: nextStatus === 'DRAFT' ? 'DRAFT' : 'ACTIVE',
+      categories: Array.isArray(categories) && categories.length ? categories : existingCats,
+      logo_url: String(logo_url || existing.logo_url || '').trim() || '/brands/default.svg',
+      offerings_count:
+        offerings_count === undefined || offerings_count === null
+          ? existing.offerings_count
+          : Number(offerings_count) || 0,
+    };
 
-        await updateBrandInBackend(id, {
-          brand_name: brand_name || existing.brand_name,
-          manufacturer: manufacturer || existing.manufacturer,
-          code: (code || existing.code).toUpperCase(),
-          country: country || existing.country,
-          country_code: existing.country_code || 'IT',
-          status: cleanStatus === 'DRAFT' ? 'DRAFT' : 'ACTIVE',
-          categories: categories || existingCats,
-          logo_url: existing.logo_url || '/brands/default.svg',
-        });
-
-        return NextResponse.json({
-          success: true,
-          source: 'spring_boot_backend',
-          message: `Brand #${id} updated in Spring Boot backend`,
-        });
-      }
+    try {
+      await updateBrandInBackend(id, {
+        brand_name: next.brand_name,
+        manufacturer: next.manufacturer,
+        code: next.code,
+        country: next.country,
+        country_code: next.country_code,
+        status: next.status,
+        categories: next.categories,
+        logo_url: next.logo_url,
+      });
     } catch (springErr: any) {
       console.warn(`[API /api/brands PATCH] Spring Boot updateBrand failed, using DB:`, springErr.message);
     }
 
-    // 2. Direct DB fallback
-    const pool = getHomesMerryDbPool();
-    await pool.query('UPDATE brands SET status = ? WHERE id = ?', [cleanStatus, id]);
+    await pool.query(
+      `UPDATE brands
+       SET brand_name = ?, manufacturer = ?, code = ?, country = ?, country_code = ?,
+           offerings_count = ?, categories = ?, status = ?, logo_url = ?, updated_date = ?
+       WHERE id = ?`,
+      [
+        next.brand_name,
+        next.manufacturer,
+        next.code,
+        next.country,
+        next.country_code,
+        next.offerings_count,
+        JSON.stringify(next.categories),
+        next.status,
+        next.logo_url,
+        formatBrandDate(),
+        id,
+      ]
+    );
 
     return NextResponse.json({
       success: true,
       source: 'database_direct',
-      message: `Brand status updated to ${cleanStatus}`,
+      message: `Brand #${id} updated`,
     });
   } catch (error: any) {
-    console.error('[API /api/brands PATCH] Error updating brand status:', error);
+    console.error('[API /api/brands PATCH] Error updating brand:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to update brand' },
       { status: 500 }

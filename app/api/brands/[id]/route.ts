@@ -91,11 +91,33 @@ export async function PUT(
       console.warn('[Brands [id] PUT] Spring Boot update failed, trying DB:', err.message);
     }
 
-    // 2. DB fallback
     const pool = getHomesMerryDbPool();
     await pool.query(
-      'UPDATE brands SET brand_name = COALESCE(?, brand_name), manufacturer = COALESCE(?, manufacturer), status = COALESCE(?, status) WHERE id = ?',
-      [body.brand_name, body.manufacturer, body.status, brandId]
+      `UPDATE brands SET
+         brand_name = COALESCE(?, brand_name),
+         manufacturer = COALESCE(?, manufacturer),
+         code = COALESCE(?, code),
+         country = COALESCE(?, country),
+         country_code = COALESCE(?, country_code),
+         status = COALESCE(?, status),
+         categories = COALESCE(?, categories),
+         logo_url = COALESCE(?, logo_url),
+         offerings_count = COALESCE(?, offerings_count),
+         updated_date = ?
+       WHERE id = ?`,
+      [
+        body.brand_name || null,
+        body.manufacturer || null,
+        body.code ? String(body.code).toUpperCase() : null,
+        body.country || null,
+        body.country_code || null,
+        body.status || null,
+        Array.isArray(body.categories) ? JSON.stringify(body.categories) : null,
+        body.logo_url || null,
+        body.offerings_count ?? null,
+        new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        brandId,
+      ]
     );
 
     return NextResponse.json({ success: true, source: 'database_direct', message: 'Brand updated' });

@@ -23,6 +23,7 @@ interface BrandDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onStatusUpdated: () => void;
+  onEdit?: (brand: BrandEntity) => void;
 }
 
 export default function BrandDetailDrawer({
@@ -31,6 +32,7 @@ export default function BrandDetailDrawer({
   isOpen,
   onClose,
   onStatusUpdated,
+  onEdit,
 }: BrandDetailDrawerProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -184,7 +186,16 @@ export default function BrandDetailDrawer({
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end">
+          <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-2">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(brand)}
+                className="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold shadow-2xs hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                Edit brand
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:text-black rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"

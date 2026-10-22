@@ -25,6 +25,7 @@ interface BrandsTableProps {
   brands: BrandEntity[];
   isLoading?: boolean;
   onBrandClick?: (brand: BrandEntity) => void;
+  onEditBrand?: (brand: BrandEntity) => void;
 }
 
 
@@ -102,7 +103,7 @@ function CategoryIcon({ category }: { category: string }) {
   );
 }
 
-export default function BrandsTable({ brands, isLoading, onBrandClick }: BrandsTableProps) {
+export default function BrandsTable({ brands, isLoading, onBrandClick, onEditBrand }: BrandsTableProps) {
   if (isLoading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/80 p-12 text-center shadow-xs">
@@ -153,8 +154,11 @@ export default function BrandsTable({ brands, isLoading, onBrandClick }: BrandsT
               <th className="py-4 px-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">
                 STATUS
               </th>
-              <th className="py-4 pl-4 pr-6 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider text-right">
+              <th className="py-4 px-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider text-right">
                 UPDATED
+              </th>
+              <th className="py-4 pl-4 pr-6 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider text-right">
+                ACTIONS
               </th>
             </tr>
           </thead>
@@ -253,10 +257,22 @@ export default function BrandsTable({ brands, isLoading, onBrandClick }: BrandsT
                   </td>
 
                   {/* UPDATED */}
-                  <td className="py-4 pl-4 pr-6 text-right">
+                  <td className="py-4 px-4 text-right">
                     <span className="text-xs text-gray-500 font-normal">
                       {brand.updated_date}
                     </span>
+                  </td>
+                  <td className="py-4 pl-4 pr-6 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditBrand?.(brand);
+                      }}
+                      className="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-800 hover:bg-gray-50"
+                    >
+                      Edit
+                    </button>
                   </td>
                 </tr>
               );
