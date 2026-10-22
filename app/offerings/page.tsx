@@ -265,8 +265,8 @@ export default function OfferingsPage() {
                   onDeactivate={() =>
                     runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'deactivate'))
                   }
-                  onChangePrice={(percent) =>
-                    runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'price', percent))
+                  onChangePrice={(adjustment: { percent?: number; amount?: number }) =>
+                    runBulk(() => bulkUpdateCatalogProducts(selectedIds, 'price', adjustment))
                   }
                   onDelete={
                     canDelete

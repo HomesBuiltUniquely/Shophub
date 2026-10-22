@@ -7,6 +7,7 @@ import { OfferingResponse } from '@/lib/types/offerings/offering.types';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { offeringImageUrl } from '@/lib/media/offering-image';
+import OfferingActionsMenu from './OfferingActionsMenu';
 
 interface OfferingRowProps {
   offering: OfferingResponse;
@@ -197,38 +198,7 @@ export default function OfferingRow({
 
       {!hideActions && (
       <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            const params = new URLSearchParams({
-              addToCart: 'true',
-              prodId: offering.prodId?.toString() || '',
-              offeringName: offering.offering_name || '',
-              price: offering.pricing?.selling_price?.toString() || '0',
-              cost: offering.pricing?.cost_price?.toString() || '0',
-              category: offering.product?.category || offering.category || 'GENERAL',
-              skuId: offering.sku_id || '',
-              image: offering.media?.primary_image || '',
-            });
-            
-            window.location.href = `/quote-engine?${params.toString()}`;
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-black hover:bg-gray-800 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-          title="Add to Quote Engine"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Quote
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push(`/offerings/CreateOfferings?id=${offering.prodId || ''}`)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg"
-        >
-          Update
-        </button>
-        </div>
+        <OfferingActionsMenu offering={offering} />
       </td>
       )}
     </tr>

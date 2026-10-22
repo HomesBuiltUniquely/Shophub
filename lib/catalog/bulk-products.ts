@@ -16,14 +16,14 @@ export async function deleteCatalogProducts(ids: Array<string | number>) {
 export async function bulkUpdateCatalogProducts(
   ids: Array<string | number>,
   action: 'activate' | 'deactivate' | 'price',
-  percent?: number
+  adjustment?: { percent?: number; amount?: number }
 ) {
   const uniqueIds = [...new Set(ids.map((id) => String(id).trim()).filter(Boolean))];
   const response = await fetch('/api/offerings/bulk', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: uniqueIds, action, percent }),
+    body: JSON.stringify({ ids: uniqueIds, action, percent: adjustment?.percent, amount: adjustment?.amount }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.success === false) {

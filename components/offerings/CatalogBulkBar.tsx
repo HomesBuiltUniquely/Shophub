@@ -11,7 +11,7 @@ interface CatalogBulkBarProps {
   onSelectPage: () => void;
   onActivate: () => void;
   onDeactivate: () => void;
-  onChangePrice: (percent: number) => void;
+  onChangePrice: (adjustment: { percent?: number; amount?: number }) => void;
   onDelete?: () => void;
 }
 
@@ -28,22 +28,24 @@ export default function CatalogBulkBar({
   onDelete,
 }: CatalogBulkBarProps) {
   const [priceOpen, setPriceOpen] = useState(false);
-  const [percent, setPercent] = useState('');
+  const [value, setValue] = useState('');
   const [direction, setDirection] = useState<'increase' | 'decrease'>('increase');
+  const [mode, setMode] = useState<'percent' | 'amount'>('percent');
 
   if (selectedCount === 0) return null;
 
   const applyPrice = () => {
-    const value = Number(percent);
-    if (!Number.isFinite(value) || value <= 0) {
-      window.alert('Enter a percentage greater than 0.');
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      window.alert(mode === 'amount' ? 'Enter an amount greater than 0.' : 'Enter a percentage greater than 0.');
       return;
     }
-    if (direction === 'decrease' && value > 100) {
+    if (mode === 'percent' && direction === 'decrease' && numeric > 100) {
       window.alert('Decrease cannot be more than 100%.');
       return;
     }
-    onChangePrice(direction === 'decrease' ? -value : value);
+    const signed = direction === 'decrease' ? -numeric : numeric;
+    onChangePrice(mode === 'amount' ? { amount: signed } : { percent: signed });
     setPriceOpen(false);
   };
 
@@ -106,28 +108,35 @@ export default function CatalogBulkBar({
       </div>
       {priceOpen && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-          <label className="text-xs font-semibold text-gray-600" htmlFor="bulk-price-percent">
-            Adjust by (%)
-          </label>
-          <input
-            id="bulk-price-percent"
-            type="number"
-            min="0.01"
-            max="1000"
-            step="0.01"
-            value={percent}
-            onChange={(e) => setPercent(e.target.value)}
-            className="w-28 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-900"
-            placeholder="10"
-          />
           <select
             value={direction}
             onChange={(e) => setDirection(e.target.value as 'increase' | 'decrease')}
             className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800"
           >
-            <option value="increase">Increase</option>
-            <option value="decrease">Decrease</option>
+            <option value="increase">Increase by</option>
+            <option value="decrease">Decrease by</option>
           </select>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as 'percent' | 'amount')}
+            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800"
+          >
+            <option value="percent">Percentage (%)</option>
+            <option value="amount">Amount (₹)</option>
+          </select>
+          <label className="sr-only" htmlFor="bulk-price-value">
+            {mode === 'amount' ? 'Amount in rupees' : 'Percentage'}
+          </label>
+          <input
+            id="bulk-price-value"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="w-28 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-900"
+            placeholder={mode === 'amount' ? '500' : '10'}
+          />
           <button
             type="button"
             onClick={applyPrice}

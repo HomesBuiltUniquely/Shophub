@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       action,
       sellingPrice: body?.selling_price ?? body?.sellingPrice,
       percent: body?.percent,
+      amount: body?.amount,
       session,
       springToken: request.cookies.get(SPRING_TOKEN_COOKIE)?.value,
     });

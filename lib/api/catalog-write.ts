@@ -279,6 +279,7 @@ export async function bulkUpdateCatalogOfferings(input: {
   action: 'activate' | 'deactivate' | 'price';
   sellingPrice?: number;
   percent?: number;
+  amount?: number;
   session: SessionUser;
   springToken?: string | null;
 }) {
@@ -297,19 +298,30 @@ export async function bulkUpdateCatalogOfferings(input: {
 
   const placeholders = localIds.map(() => '?').join(', ');
   if (input.action === 'price') {
-    const percent = Number(input.percent ?? input.sellingPrice);
-    if (!Number.isFinite(percent) || percent === 0) {
-      return { success: false as const, error: 'Enter a non-zero percentage.', status: 400 };
+    const amount = Number(input.amount);
+    const percent = Number(input.percent ?? (Number.isFinite(amount) && amount !== 0 ? NaN : input.sellingPrice));
+    const useAmount = Number.isFinite(amount) && amount !== 0;
+    if (useAmount) {
+      await pool.query(
+        `UPDATE product
+         SET selling_price = GREATEST(ROUND(selling_price + ?, 2), 0)
+         WHERE prod_id IN (${placeholders})`,
+        [amount, ...localIds]
+      );
+    } else {
+      if (!Number.isFinite(percent) || percent === 0) {
+        return { success: false as const, error: 'Enter a non-zero percentage or amount.', status: 400 };
+      }
+      if (percent < -100) {
+        return { success: false as const, error: 'Percentage cannot be less than -100%.', status: 400 };
+      }
+      await pool.query(
+        `UPDATE product
+         SET selling_price = GREATEST(ROUND(selling_price * (1 + ? / 100), 2), 0)
+         WHERE prod_id IN (${placeholders})`,
+        [percent, ...localIds]
+      );
     }
-    if (percent < -100) {
-      return { success: false as const, error: 'Percentage cannot be less than -100%.', status: 400 };
-    }
-    await pool.query(
-      `UPDATE product
-       SET selling_price = GREATEST(ROUND(selling_price * (1 + ? / 100), 2), 0)
-       WHERE prod_id IN (${placeholders})`,
-      [percent, ...localIds]
-    );
     const [updatedRows] = await pool.query<RowDataPacket[]>(
       `SELECT prod_id, selling_price FROM product WHERE prod_id IN (${placeholders})`,
       localIds
@@ -324,7 +336,14 @@ export async function bulkUpdateCatalogOfferings(input: {
         )
       )
     );
-    return { success: true as const, updated: localIds.length, ids: localIds, action: input.action, percent };
+    return {
+      success: true as const,
+      updated: localIds.length,
+      ids: localIds,
+      action: input.action,
+      percent: useAmount ? undefined : percent,
+      amount: useAmount ? amount : undefined,
+    };
   }
 
   const published = input.action === 'activate';
