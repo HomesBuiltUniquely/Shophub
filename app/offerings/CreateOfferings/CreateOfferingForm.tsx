@@ -89,13 +89,15 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+const STATIC_HUB_BRAND = { brand_id: 0, brand_name: 'Hub' };
+
 export default function CreateOfferingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useCurrentUser();
   const allowService = canCreateService(user);
   const [tab, setTab] = useState<TabId>('GENERAL');
-  const [brands, setBrands] = useState<{ brand_id: number; brand_name: string }[]>([]);
+  const [brands, setBrands] = useState<{ brand_id: number; brand_name: string }[]>([STATIC_HUB_BRAND]);
   const [categories, setCategories] = useState<PrimaryCategory[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
@@ -114,8 +116,8 @@ export default function CreateOfferingForm() {
     offering_type: 'PRODUCT',
     sku_id: '',
     category: '',
-    brand_id: 5,
-    brand: 'Hub Homes Royale',
+    brand_id: 0,
+    brand: 'Hub',
     tags: ['chair', 'armchair', 'lounge', 'luxury', 'living-room'] as string[],
     short_desc: '',
     long_desc: '',
@@ -171,7 +173,37 @@ export default function CreateOfferingForm() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.brands) && data.brands.length > 0) {
-          setBrands(data.brands);
+          const filtered = data.brands.filter(
+            (b: any) => b && b.brand_name?.trim().toLowerCase() !== 'hub brand'
+          );
+          const existingHub = filtered.find(
+            (b: any) => b.brand_name?.trim().toLowerCase() === 'hub'
+          );
+          const hubItem = existingHub
+            ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'Hub' }
+            : STATIC_HUB_BRAND;
+
+          const others = filtered.filter(
+            (b: any) =>
+              b.brand_name?.trim().toLowerCase() !== 'hub' &&
+              b.brand_id !== hubItem.brand_id
+          );
+          const list = [hubItem, ...others];
+          setBrands(list);
+
+          setForm((prev) => {
+            if (prev.brand && prev.brand.trim().toLowerCase() !== 'hub' && prev.brand.trim().toLowerCase() !== 'hub brand') {
+              const matched = list.find(
+                (b: any) => b.brand_name?.toLowerCase() === prev.brand.toLowerCase()
+              );
+              if (matched) {
+                return { ...prev, brand_id: matched.brand_id, brand: matched.brand_name };
+              }
+            } else {
+              return { ...prev, brand_id: hubItem.brand_id, brand: hubItem.brand_name };
+            }
+            return prev;
+          });
         }
       })
       .catch(() => undefined);

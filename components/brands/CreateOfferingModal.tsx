@@ -29,6 +29,8 @@ interface CreateOfferingModalProps {
   onOfferingCreated: () => void;
 }
 
+const STATIC_HUB_BRAND = { brand_id: 0, brand_name: 'Hub', code: 'HUB' };
+
 export default function CreateOfferingModal({
 
   isOpen,
@@ -42,8 +44,10 @@ export default function CreateOfferingModal({
   const [offeringType, setOfferingType] = useState<'PRODUCT' | 'SERVICE' | 'BUNDLE'>('PRODUCT');
   const [skuId, setSkuId] = useState('');
   const [category, setCategory] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState(brands[0]?.brand_name || 'Lumina Italica');
-  const [dropdownBrands, setDropdownBrands] = useState<{ brand_id: number; brand_name: string; code: string }[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState('Hub');
+  const [dropdownBrands, setDropdownBrands] = useState<{ brand_id: number; brand_name: string; code?: string }[]>([
+    STATIC_HUB_BRAND,
+  ]);
   const [sellingPrice, setSellingPrice] = useState(19999);
   const [costPrice, setCostPrice] = useState(11000);
   const [currentStock, setCurrentStock] = useState(40);
@@ -60,9 +64,25 @@ export default function CreateOfferingModal({
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.brands) && data.brands.length > 0) {
-            setDropdownBrands(data.brands);
-            if (!selectedBrand) {
-              setSelectedBrand(data.brands[0].brand_name);
+            const filtered = data.brands.filter(
+              (b: any) => b && b.brand_name?.trim().toLowerCase() !== 'hub brand'
+            );
+            const existingHub = filtered.find(
+              (b: any) => b.brand_name?.trim().toLowerCase() === 'hub'
+            );
+            const hubItem = existingHub
+              ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'Hub' }
+              : STATIC_HUB_BRAND;
+
+            const others = filtered.filter(
+              (b: any) =>
+                b.brand_name?.trim().toLowerCase() !== 'hub' &&
+                b.brand_id !== hubItem.brand_id
+            );
+            const list = [hubItem, ...others];
+            setDropdownBrands(list);
+            if (!selectedBrand || selectedBrand.trim().toLowerCase() === 'hub brand') {
+              setSelectedBrand(list[0].brand_name);
             }
           }
         })
@@ -75,7 +95,10 @@ export default function CreateOfferingModal({
   const brandOptions =
     dropdownBrands.length > 0
       ? dropdownBrands
-      : brands.map((b) => ({ brand_id: b.id, brand_name: b.brand_name, code: b.code }));
+      : [
+          STATIC_HUB_BRAND,
+          ...brands.map((b) => ({ brand_id: b.id, brand_name: b.brand_name, code: b.code })),
+        ];
 
   const categories = [
     'FURNITURE',
