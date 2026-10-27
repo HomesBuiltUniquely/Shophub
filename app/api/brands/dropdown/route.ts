@@ -11,10 +11,10 @@ import { fetchBrandDropdownFromBackend } from '@/lib/api/brand.service';
 import { getHomesMerryDbPool } from '@/lib/db/homesmerry';
 
 const STATIC_HUB_BRAND = {
-  brand_id: 0,
-  brand_name: 'Hub',
+  brand_id: 7,
+  brand_name: 'HUB',
   code: 'HUB',
-  logo_url: '/brands/hub.svg',
+  logo_url: '/images/hub-logo.jpg',
   status: 'ACTIVE',
 };
 
@@ -26,7 +26,7 @@ function formatBrandDropdown(rawBrands: any[]) {
     (b) => b.brand_name?.trim().toLowerCase() === 'hub'
   );
   const hubItem = existingHub
-    ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'Hub' }
+    ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'HUB' }
     : STATIC_HUB_BRAND;
 
   const others = filtered.filter(

@@ -48,11 +48,26 @@ function countryCodeFor(country: string, fallback?: string) {
   return fallback || map[country] || 'IN';
 }
 
+function generateBrandCode(brandName: string, countryCode: string): string {
+  const clean = (brandName || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const prefix = clean.length >= 3 ? clean.slice(0, 3) : (clean || 'BRD').padEnd(3, 'X');
+  return `${prefix}-${countryCode || 'IN'}-01`;
+}
+
 function formatBrandDate(date = new Date()) {
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+}
+
+function sortBrandsWithHubFirst<T extends { brand_name?: string }>(brandList: T[]): T[] {
+  return [...brandList].sort((a, b) => {
+    const isHubA = a.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+    const isHubB = b.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+    if (isHubA !== isHubB) return isHubA - isHubB;
+    return 0;
   });
 }
 
@@ -115,7 +130,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         source: 'spring_boot_backend',
-        brands: backendBrands.brands,
+        brands: sortBrandsWithHubFirst(backendBrands.brands).map((b) =>
+          b.brand_name?.trim().toLowerCase() === 'hub'
+            ? { ...b, brand_name: 'HUB', code: 'HUB', status: 'ACTIVE', logo_url: '/images/hub-logo.jpg' }
+            : b
+        ),
         totalFiltered: backendBrands.totalFiltered,
         totalCatalogBrands: stats.totalBrands,
         page: backendBrands.page,
@@ -157,11 +176,12 @@ export async function GET(request: NextRequest) {
       params.push(countryParam);
     }
 
-    query += ' ORDER BY id ASC';
+    query += ' ORDER BY CASE WHEN LOWER(TRIM(brand_name)) = "hub" THEN 0 ELSE 1 END, id ASC';
 
     const [rows]: any = await pool.query(query, params);
 
     const allMatchingBrands: BrandEntity[] = (rows || []).map((row: any) => {
+      const isHub = row.brand_name?.trim().toLowerCase() === 'hub';
       let categories: string[] = [];
       if (typeof row.categories === 'string') {
         try {
@@ -175,15 +195,15 @@ export async function GET(request: NextRequest) {
 
       return {
         id: row.id,
-        brand_name: row.brand_name,
-        manufacturer: row.manufacturer,
-        code: row.code,
+        brand_name: isHub ? 'HUB' : row.brand_name,
+        manufacturer: isHub ? 'HUB' : row.manufacturer,
+        code: isHub ? 'HUB' : row.code,
         country: row.country,
         country_code: row.country_code || 'IT',
         offerings_count: row.offerings_count,
         categories,
-        status: (row.status || 'ACTIVE').toUpperCase() as 'ACTIVE' | 'DRAFT' | 'PENDING',
-        logo_url: row.logo_url || '/brands/default.svg',
+        status: isHub ? 'ACTIVE' : ((row.status || 'ACTIVE').toUpperCase() as 'ACTIVE' | 'DRAFT' | 'PENDING'),
+        logo_url: isHub ? '/images/hub-logo.jpg' : (row.logo_url || '/brands/default.svg'),
         updated_date: row.updated_date || 'Oct 24, 2023',
         created_at: row.created_at,
       };
@@ -217,7 +237,8 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
     const safePage = Math.min(page, totalPages);
     const offset = (safePage - 1) * pageSize;
-    const paginatedBrands = allMatchingBrands.slice(offset, offset + pageSize);
+    const sortedMatching = sortBrandsWithHubFirst(allMatchingBrands);
+    const paginatedBrands = sortedMatching.slice(offset, offset + pageSize);
 
     return NextResponse.json({
       success: true,
@@ -254,16 +275,16 @@ export async function POST(request: NextRequest) {
     const { brand_name, manufacturer, code, country, country_code, status, categories, offerings_count, logo_url } =
       body;
 
-    if (!brand_name || !code) {
+    if (!brand_name) {
       return NextResponse.json(
-        { success: false, error: 'brand_name and code are required' },
+        { success: false, error: 'brand_name is required' },
         { status: 400 }
       );
     }
 
-    const cleanCode = code.toUpperCase();
     const cleanCountry = country || 'Italy';
     const cleanCountryCode = countryCodeFor(cleanCountry, country_code);
+    const cleanCode = (code ? String(code) : generateBrandCode(brand_name, cleanCountryCode)).toUpperCase();
     const cleanCategories = categories && categories.length > 0 ? categories : ['FURNITURE'];
     const cleanStatus = status === 'DRAFT' ? 'DRAFT' : 'ACTIVE';
     const cleanLogo = String(logo_url || '').trim() || '/brands/default.svg';
@@ -362,7 +383,7 @@ export async function PATCH(request: NextRequest) {
     const next = {
       brand_name: brand_name || existing.brand_name,
       manufacturer: manufacturer || existing.manufacturer,
-      code: String(code || existing.code).toUpperCase(),
+      code: String(existing.code || code || "").toUpperCase(),
       country: nextCountry,
       country_code: countryCodeFor(nextCountry, country_code || existing.country_code),
       status: nextStatus,

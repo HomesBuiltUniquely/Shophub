@@ -222,10 +222,54 @@ export async function createCatalogOffering(
     );
 
     if (payload.brand) {
+      const isHub = payload.brand.trim().toLowerCase() === 'hub' || payload.brand.trim().toLowerCase() === 'hub brand';
+      const brandNameParam = payload.brand.trim();
+
+      // 1. Increment offerings count and ensure brand status is ACTIVE
       await connection.query(
-        `UPDATE brands SET offerings_count = offerings_count + 1 WHERE brand_name = ?`,
-        [payload.brand]
+        `UPDATE brands 
+         SET offerings_count = COALESCE(offerings_count, 0) + 1,
+             status = 'ACTIVE'
+         WHERE LOWER(TRIM(brand_name)) = LOWER(?)
+            ${isHub ? "OR code = 'HUB' OR LOWER(TRIM(brand_name)) = 'hub'" : ""}`,
+        [brandNameParam]
       );
+
+      // 2. Automatically sync category to the brand's categories
+      if (payload.category) {
+        try {
+          const [brandRows]: any = await connection.query(
+            `SELECT id, categories FROM brands 
+             WHERE LOWER(TRIM(brand_name)) = LOWER(?)
+                ${isHub ? "OR code = 'HUB' OR LOWER(TRIM(brand_name)) = 'hub'" : ""}
+             LIMIT 1`,
+            [brandNameParam]
+          );
+
+          if (brandRows && brandRows.length > 0) {
+            const bRow = brandRows[0];
+            let existingCats: string[] = [];
+            try {
+              existingCats = typeof bRow.categories === 'string'
+                ? JSON.parse(bRow.categories)
+                : (Array.isArray(bRow.categories) ? bRow.categories : []);
+            } catch {
+              existingCats = [];
+            }
+
+            const catToAdd = String(payload.category).toUpperCase().trim();
+            if (catToAdd && !existingCats.includes(catToAdd)) {
+              existingCats.push(catToAdd);
+              await connection.query(
+                `UPDATE brands SET categories = ? WHERE id = ?`,
+                [JSON.stringify(existingCats), bRow.id]
+              );
+            }
+          }
+        } catch (catErr: any) {
+          console.warn('[catalog-write] Failed to sync brand category:', catErr.message);
+        }
+      }
     }
 
     const springId =

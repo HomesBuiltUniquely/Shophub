@@ -89,7 +89,7 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-const STATIC_HUB_BRAND = { brand_id: 0, brand_name: 'Hub' };
+const STATIC_HUB_BRAND = { brand_id: 7, brand_name: 'HUB', code: 'HUB', logo_url: '/images/hub-logo.jpg' };
 
 export default function CreateOfferingForm() {
   const router = useRouter();
@@ -180,7 +180,7 @@ export default function CreateOfferingForm() {
             (b: any) => b.brand_name?.trim().toLowerCase() === 'hub'
           );
           const hubItem = existingHub
-            ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'Hub' }
+            ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'HUB' }
             : STATIC_HUB_BRAND;
 
           const others = filtered.filter(

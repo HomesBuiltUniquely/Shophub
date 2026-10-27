@@ -73,7 +73,14 @@ export default function BrandsMasterPage() {
       const data = await res.json();
 
       if (data.success) {
-        setBrands(data.brands || []);
+        const fetched = data.brands || [];
+        const sorted = [...fetched].sort((a: BrandEntity, b: BrandEntity) => {
+          const isHubA = a.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+          const isHubB = b.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+          if (isHubA !== isHubB) return isHubA - isHubB;
+          return 0;
+        });
+        setBrands(sorted);
         setStats(data.stats);
         setTotalFiltered(data.totalFiltered || 0);
         setTotalCatalogBrands(data.totalCatalogBrands || 0);
