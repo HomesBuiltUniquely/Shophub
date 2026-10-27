@@ -195,5 +195,6 @@ export const CLIENT_NAV_ITEMS: ClientNavItem[] = [
   { name: 'Offerings', href: '/client/offerings', iconId: 'offerings' },
   { name: 'Payments', href: '/client/payments', iconId: 'payments' },
   { name: 'Invoices', href: '/client/invoices', iconId: 'invoices' },
+  { name: 'Feedback & Reviews', href: '/client/feedback', iconId: 'feedback' },
   { name: 'Profile & Settings', href: '/client/settings', iconId: 'settings' },
 ];

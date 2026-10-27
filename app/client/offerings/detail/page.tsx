@@ -15,6 +15,7 @@ import ClientOfferingGallery from '@/components/client/offerings/detail/ClientOf
 import ClientOfferingOverview from '@/components/client/offerings/detail/ClientOfferingOverview';
 import ClientOfferingPricingActions from '@/components/client/offerings/detail/ClientOfferingPricingActions';
 import ClientOfferingSpecsTabs from '@/components/client/offerings/detail/ClientOfferingSpecsTabs';
+import ClientProductReviews from '@/components/client/offerings/detail/ClientProductReviews';
 import DraftDrawer from '@/components/client/offerings/detail/DraftDrawer';
 
 import { useSingleOffering } from '@/lib/hooks/useSingleOffering';
@@ -216,6 +217,13 @@ function ClientOfferingDetailContent() {
                   secondaryMaterial={secondaryMaterial}
                   frameFinish={frameFinish}
                   cushionDesc={cushionDesc}
+                />
+
+                {/* 3. Verified Customer Reviews */}
+                <ClientProductReviews
+                  prodId={prodId}
+                  productName={offeringName}
+                  enterpriseName={brand}
                 />
               </div>
 

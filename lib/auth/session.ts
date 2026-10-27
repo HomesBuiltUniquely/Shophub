@@ -91,6 +91,7 @@ export function isInternalAllowedPath(pathname: string) {
 
 export function isEnterprisePath(pathname: string) {
   return (
+    pathname.startsWith('/admin') ||
     pathname.startsWith('/offerings') ||
     pathname.startsWith('/enterprise') ||
     pathname.startsWith('/dashboard') ||
