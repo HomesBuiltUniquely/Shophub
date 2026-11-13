@@ -42,7 +42,7 @@ function SingleOfferingContent() {
         onSearchChange={() => {}}
       />
 
-      <main className="ml-56 pt-20 px-6 sm:px-8">
+      <main className="lg:ml-56 pt-20 px-6 sm:px-8">
         {isLoading && !product ? (
           <SingleOfferingLoader />
         ) : (

@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { MobileNavButton } from '@/components/layout/MobileNav';
 
 interface BrandsHeaderProps {
   searchQuery: string;
@@ -28,11 +29,14 @@ export default function BrandsHeader({
   onCreateOffering,
 }: BrandsHeaderProps) {
   return (
-    <header className="h-16 bg-white border-b border-gray-200/80 fixed top-0 right-0 left-56 z-20 flex items-center justify-between px-8 gap-6">
+    <header className="h-16 bg-white border-b border-gray-200/80 fixed top-0 right-0 left-0 lg:left-56 z-20 flex items-center justify-between px-3 sm:px-6 lg:px-8 gap-3">
       {/* Left Title: ERP Offerings */}
-      <div className="flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
+        <MobileNavButton />
+        <div className="hidden sm:block">
         <span className="text-xs font-bold text-gray-500 tracking-wider block -mb-1">ERP</span>
         <span className="text-lg font-extrabold text-gray-950 tracking-tight">Offerings</span>
+        </div>
       </div>
 
       {/* Center Search Input */}
@@ -84,7 +88,7 @@ export default function BrandsHeader({
           className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs uppercase tracking-wide cursor-pointer"
         >
           <span className="text-sm font-extrabold leading-none">+</span>
-          <span>CREATE OFFERING</span>
+          <span className="hidden sm:inline">CREATE OFFERING</span>
         </button>
 
         {/* User Profile Avatar */}

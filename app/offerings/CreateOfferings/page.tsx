@@ -26,7 +26,7 @@ export default function CreateOfferings() {
     <div className="min-h-screen bg-white">
       <Sidebar />
       <TopHeader title="ERP Offerings" />
-      <main className="ml-56 pt-16 min-h-screen bg-white">
+      <main className="lg:ml-56 pt-16 min-h-screen bg-white">
         <Suspense fallback={<div className="p-10 text-sm text-gray-500">Loading offering form...</div>}>
           <CreateOfferingForm />
         </Suspense>

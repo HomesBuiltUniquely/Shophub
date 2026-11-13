@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import SignOutButton from '@/components/auth/SignOutButton';
+import { MobileNavButton } from '@/components/layout/MobileNav';
 
 interface EnterpriseTopHeaderProps {
   title?: string;
@@ -19,15 +20,16 @@ export default function EnterpriseTopHeader({
 }: EnterpriseTopHeaderProps) {
   const router = useRouter();
   return (
-    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-56 z-10">
-      <div className="h-full px-6 flex items-center justify-between gap-6">
+    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-0 lg:left-56 z-10">
+      <div className="h-full px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         {/* Left: Page Label */}
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-bold text-gray-900 tracking-tight">{title}</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <MobileNavButton />
+          <span className="text-sm font-bold text-gray-900 tracking-tight truncate">{title}</span>
         </div>
 
         {/* Center: Search Bar */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md min-w-0">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -96,7 +98,7 @@ export default function EnterpriseTopHeader({
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>Create Offering</span>
+            <span className="hidden sm:inline">Create Offering</span>
           </button>
 
           <SignOutButton className="ml-1 rounded-md px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950" />

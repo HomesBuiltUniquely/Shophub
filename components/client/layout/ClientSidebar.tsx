@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useClientDashboard } from '@/lib/client/ClientDashboardContext';
 import { CLIENT_NAV_ITEMS } from '@/lib/client/clientData';
+import { useMobileNav } from '@/components/layout/MobileNav';
+import SignOutButton from '@/components/auth/SignOutButton';
 import {
   HubLogo,
   HomeIcon,
@@ -29,17 +31,32 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 export default function ClientSidebar() {
   const pathname = usePathname();
   const { openContactModal } = useClientDashboard();
+  const { open, close } = useMobileNav();
 
   return (
-    <aside className="w-64 bg-[#FAF7F2] flex flex-col h-screen fixed left-0 top-0 z-30 border-r border-[#EFECE6]/60 select-none overflow-y-auto">
+    <>
+    {open && (
+      <button
+        type="button"
+        aria-label="Close menu"
+        className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        onClick={close}
+      />
+    )}
+    <aside className={`w-64 bg-[#FAF7F2] flex flex-col h-screen fixed left-0 top-0 z-50 border-r border-[#EFECE6]/60 select-none overflow-y-auto transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
       {/* Brand Header */}
-      <div className="px-7 pt-7 pb-6">
+      <div className="px-7 pt-7 pb-6 flex items-start justify-between gap-3">
         <Link href="/client" className="inline-flex flex-col items-start gap-1">
           <HubLogo />
           <div className="text-[10px] font-bold text-gray-400 tracking-[0.22em] uppercase">
             Client portal
           </div>
         </Link>
+        <button type="button" onClick={close} aria-label="Close menu" className="lg:hidden p-2 rounded-full text-gray-500 hover:bg-black/5">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Navigation List */}
@@ -89,7 +106,9 @@ export default function ClientSidebar() {
         >
           <span>Contact RM</span>
         </button>
+        <SignOutButton className="lg:hidden mt-3 w-full rounded-full px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-black/5" />
       </div>
     </aside>
+    </>
   );
 }

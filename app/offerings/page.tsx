@@ -101,8 +101,8 @@ export default function OfferingsPage() {
       <TopHeader title="Offerings" onSearch={(query) => dispatch(setSearchQuery(query))} />
 
       {/* Main Content Area */}
-      <main className="ml-56 pt-16">
-        <div className="p-6">
+      <main className="lg:ml-56 pt-16 min-w-0">
+        <div className="p-4 sm:p-6">
           {/* ===================================================================== */}
           {/* MASTER CATALOG HEADER (Matching UI Reference) */}
           {/* ===================================================================== */}

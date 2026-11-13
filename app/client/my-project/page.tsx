@@ -74,12 +74,12 @@ function MyProjectContent() {
       <ClientSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         {/* Sticky Top Header */}
         <ClientHeader />
 
         {/* Dashboard Main Body */}
-        <main className="flex-1 px-8 sm:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-7">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-7">
           {/* Row 1: Execution & Progress Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left 7 Cols: Current Phase & Site Photo Gallery */}

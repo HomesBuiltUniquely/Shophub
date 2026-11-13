@@ -137,7 +137,7 @@ export default function EnterprisePendingApprovalsPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex">
       <Sidebar />
-      <main className="flex-1 ml-56 pt-20 flex flex-col min-w-0">
+      <main className="flex-1 lg:ml-56 pt-20 flex flex-col min-w-0">
         <TopHeader title="Approval Tracker" />
 
         <div className="p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">

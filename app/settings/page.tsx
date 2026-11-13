@@ -190,7 +190,7 @@ export default function SettingsPage() {
 
   return (
     <EnterpriseShell title="Settings" placeholder="Search settings...">
-      <main className="ml-56 pt-16 p-8 max-w-4xl">
+      <main className="lg:ml-56 pt-16 p-4 sm:p-6 lg:p-8 max-w-4xl">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Settings</p>

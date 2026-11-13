@@ -80,7 +80,7 @@ export default function QuoteSidebar({
   };
 
   return (
-    <aside className="w-80 bg-white border-l border-gray-200 h-[calc(100vh-3.5rem-5rem)] fixed top-14 right-0 flex flex-col justify-between z-20 transform transition-transform duration-300 ease-in-out">
+    <aside className="w-full sm:w-80 bg-white border-l border-gray-200 h-[calc(100vh-3.5rem-5rem)] fixed top-14 right-0 flex flex-col justify-between z-20 transform transition-transform duration-300 ease-in-out">
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div>

@@ -34,20 +34,20 @@ export default function QuoteBottomBar({
     : grandTotal * 0.33;
 
   return (
-    <footer className="fixed bottom-0 left-56 right-0 h-20 bg-neutral-950 text-white z-30 px-6 border-t border-neutral-800 flex items-center justify-between shadow-2xl">
+    <footer className="fixed bottom-0 left-0 lg:left-56 right-0 h-auto min-h-20 py-3 lg:h-20 lg:py-0 bg-neutral-950 text-white z-30 px-3 sm:px-6 border-t border-neutral-800 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between shadow-2xl">
       {/* Financial Metrics */}
-      <div className="flex items-center gap-8">
+      <div className="flex flex-wrap items-center gap-4 lg:gap-8">
         {/* Grand Total */}
         <div>
           <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
             GRAND TOTAL
           </div>
-          <div className="text-2xl font-extrabold text-white tracking-tight">
+          <div className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
 
-        <div className="h-8 w-px bg-neutral-800" />
+        <div className="hidden sm:block h-8 w-px bg-neutral-800" />
 
         {/* Designer Margin */}
         <div>
@@ -62,7 +62,7 @@ export default function QuoteBottomBar({
           </div>
         </div>
 
-        <div className="h-8 w-px bg-neutral-800" />
+        <div className="hidden sm:block h-8 w-px bg-neutral-800" />
 
         {/* Projected Profit */}
         <div>
@@ -76,7 +76,7 @@ export default function QuoteBottomBar({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
         <button
           type="button"
           onClick={onSaveForClient}

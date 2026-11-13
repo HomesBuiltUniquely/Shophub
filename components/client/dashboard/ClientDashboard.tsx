@@ -20,12 +20,12 @@ function DashboardContent() {
       <ClientSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         {/* Sticky Top Header */}
         <ClientHeader />
 
         {/* Dashboard Main Body */}
-        <main className="flex-1 px-8 sm:px-10 py-8 max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 max-w-[1440px] w-full mx-auto">
           {/* Greeting */}
           <WelcomeSection />
 

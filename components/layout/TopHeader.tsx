@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import SignOutButton from '@/components/auth/SignOutButton';
+import { MobileNavButton } from '@/components/layout/MobileNav';
 import { firstNameFrom, roleLabel, useCurrentUser } from '@/lib/auth/useCurrentUser';
 import { isInternalStaff } from '@/lib/auth/session';
 import { readLocalProfile } from '@/lib/profile-local';
@@ -50,15 +51,16 @@ export default function TopHeader({
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-56 z-30">
-      <div className="h-full px-6 flex items-center justify-between gap-6">
+    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-0 lg:left-56 z-30">
+      <div className="h-full px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Page Label */}
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-bold text-gray-900 tracking-tight">{title}</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <MobileNavButton />
+          <span className="hidden sm:inline text-sm font-bold text-gray-900 tracking-tight truncate max-w-[8rem] lg:max-w-none">{title}</span>
         </div>
 
         {/* Center: Search Bar */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md min-w-0">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -86,7 +88,7 @@ export default function TopHeader({
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {extraActions}
           {/* Notifications with red dot */}
           <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
@@ -107,7 +109,7 @@ export default function TopHeader({
           </button>
 
           {/* Help */}
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+          <button className="hidden sm:inline-flex p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
             <svg
               className="h-5 w-5"
               fill="none"
@@ -128,11 +130,11 @@ export default function TopHeader({
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Create Offering</span>
+              <span className="hidden sm:inline">Create Offering</span>
             </button>
           )}
 
-          <SignOutButton className="ml-1 rounded-md px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+          <SignOutButton className="ml-1 hidden sm:inline rounded-md px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
 
           <div className="ml-1 flex items-center gap-2">
             <div className="text-right hidden sm:block">

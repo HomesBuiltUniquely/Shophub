@@ -188,9 +188,9 @@ function OfferingInvoiceContent() {
         <Sidebar />
 
         {/* Inner Content Area */}
-        <div className="flex-1 ml-56 flex">
+        <div className="flex-1 lg:ml-56 flex flex-col xl:flex-row min-w-0">
           {/* Left Context Column: Customer Selector (Matching Quote Engine) */}
-          <aside className="w-72 bg-white border-r border-gray-200 h-[calc(100vh-4rem)] sticky top-16 p-5 overflow-y-auto flex flex-col justify-between shrink-0">
+          <aside className="w-full xl:w-72 bg-white border-b xl:border-b-0 xl:border-r border-gray-200 h-auto xl:h-[calc(100vh-4rem)] relative xl:sticky xl:top-16 p-4 sm:p-5 overflow-y-auto flex flex-col justify-between shrink-0">
             <div className="space-y-6">
               <div>
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
@@ -311,7 +311,7 @@ function OfferingInvoiceContent() {
           </aside>
 
           {/* Right Main Content Area: Invoices View */}
-          <main className="flex-1 p-8 max-w-5xl">
+          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-5xl">
             {/* Page Header */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div>
@@ -331,7 +331,7 @@ function OfferingInvoiceContent() {
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     placeholder="Filter by invoice or offering..."
-                    className="w-64 text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-full bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                    className="w-full sm:w-64 text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-full bg-white focus:outline-none focus:ring-1 focus:ring-black"
                   />
                   <svg className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="8" strokeWidth={2} />

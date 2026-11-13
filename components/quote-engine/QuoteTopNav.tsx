@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { MobileNavButton } from '@/components/layout/MobileNav';
 
 interface QuoteTopNavProps {
   searchQuery: string;
@@ -22,9 +23,10 @@ export default function QuoteTopNav({
   isSidebarOpen = false,
 }: QuoteTopNavProps) {
   return (
-    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 left-56 right-0 z-30 flex items-center justify-between px-6">
+    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 left-0 lg:left-56 right-0 z-30 flex items-center justify-between gap-3 px-3 sm:px-6">
+      <MobileNavButton />
       {/* Left Navigation Tabs */}
-      <div className="flex items-center gap-8 h-full">
+      <div className="flex items-center gap-4 sm:gap-8 h-full min-w-0 overflow-x-auto">
         <button
           onClick={() => onTabChange && onTabChange('ERP Offerings')}
           className={`text-sm h-full flex items-center px-1 transition-colors ${
@@ -70,7 +72,7 @@ export default function QuoteTopNav({
       {/* Right Controls: Search, Cart Icon, Notifications, Help, Profile */}
       <div className="flex items-center gap-3">
         {/* Global Catalog Search */}
-        <div className="relative w-64">
+        <div className="relative w-36 sm:w-64 hidden md:block">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

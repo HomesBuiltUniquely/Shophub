@@ -100,7 +100,7 @@ export default function QuoteContextSidebar({
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-[calc(100vh-4rem-5rem)] fixed top-16 left-56 p-5 overflow-y-auto flex flex-col justify-between z-20">
+    <aside className="w-full xl:w-64 bg-white border-b xl:border-b-0 xl:border-r border-gray-200 h-auto max-h-[70vh] xl:max-h-none xl:h-[calc(100vh-4rem-5rem)] relative xl:fixed xl:top-16 xl:left-56 pt-20 xl:pt-5 px-4 sm:px-5 pb-5 overflow-y-auto flex flex-col xl:justify-between z-20">
       <div className="space-y-6">
         {/* Customer Context Section */}
         <div>

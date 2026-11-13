@@ -169,7 +169,7 @@ function QuotationsContent() {
       <ClientSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         {/* Sticky Top Header with "My Hub" & "Search quotations..." */}
         <ClientHeader
           pageTitle="My Hub"
@@ -190,7 +190,7 @@ function QuotationsContent() {
         )}
 
         {/* Quotations Main Body */}
-        <main className="flex-1 px-8 sm:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-8">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-8">
           {/* Top Page Title & Actions Strip */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>

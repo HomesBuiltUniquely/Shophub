@@ -75,7 +75,7 @@ export default function OfferingImageGallery({
   return (
     <div className="space-y-4">
       {/* Large Hero Showcase Card */}
-      <div className="bg-white  rounded-2xl border border-gray-200 overflow-hidden shadow-sm flex items-center justify-center p-6 2xl:pl-10 2xl:pr-10 2xl:pt-10 2xl:pb-10 2xl:w-[600px] h-[410px] 2xl:h-[520px] relative groups">
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm flex items-center justify-center p-4 sm:p-6 2xl:pl-10 2xl:pr-10 2xl:pt-10 2xl:pb-10 w-full max-w-full 2xl:w-[600px] h-[240px] sm:h-[340px] lg:h-[410px] 2xl:h-[520px] relative groups">
         {!hasError && selectedSrc ? (
           <img
             src={selectedSrc}

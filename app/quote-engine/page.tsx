@@ -951,7 +951,7 @@ function QuoteEngineContent() {
       />
 
       {/* Main Workspace with Three-Column Layout */}
-      <div className="flex-1 flex w-full">
+      <div className="flex-1 flex w-full min-w-0 flex-col xl:flex-row lg:ml-56">
         {/* Left Column: Customer, Project & Room Context (Visible to Admin, CRM, and Design users - Hidden for Enterprise) */}
         {!isEnterprise && (
           <QuoteContextSidebar
@@ -976,7 +976,7 @@ function QuoteEngineContent() {
         )}
 
         {/* Center Column: Interactive Catalog & Smart Suggestions */}
-        <main className={`${isEnterprise ? 'ml-56' : 'ml-[30rem]'} ${isQuoteSidebarOpen ? 'mr-80' : 'mr-0'} pt-16 pb-24 flex-1 bg-white min-h-[calc(100vh-4rem-5rem)] overflow-y-auto transition-all duration-300`}>
+        <main className={`${!isEnterprise ? 'xl:ml-64' : ''} ${isQuoteSidebarOpen ? 'xl:mr-80' : ''} pt-16 pb-40 sm:pb-32 lg:pb-24 flex-1 min-w-0 bg-white min-h-[calc(100vh-4rem-5rem)] overflow-y-auto transition-all duration-300`}>
           <QuoteCatalogSection
             products={searchedProducts}
             selectedCategory={selectedCategory}

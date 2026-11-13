@@ -775,11 +775,11 @@ export default function CategoriesPage() {
       <TopHeader onSearch={(q) => setSearchQuery(q)} />
 
       {/* Main Container */}
-      <div className="ml-56 pt-16 flex-1 flex h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="lg:ml-56 pt-16 flex-1 flex flex-col lg:flex-row min-w-0 min-h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] lg:overflow-hidden">
         {/* ===================================================================== */}
         {/* MIDDLE COLUMN: CATALOG STRUCTURE (Tree View) */}
         {/* ===================================================================== */}
-        <section className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+        <section className="w-full lg:w-80 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col h-auto max-h-[40vh] lg:max-h-none lg:h-full shrink-0">
           {/* Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-gray-900 tracking-tight">Catalog Structure</h2>
@@ -805,9 +805,9 @@ export default function CategoriesPage() {
         {/* ===================================================================== */}
         {/* RIGHT COLUMN: CATEGORY DETAILS & EDITING */}
         {/* ===================================================================== */}
-        <main className="flex-1 bg-white p-8 overflow-y-auto">
+        <main className="flex-1 min-w-0 bg-white p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {/* Top Breadcrumb & Actions */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
             <nav className="flex min-w-0 flex-1 flex-wrap items-end gap-x-1.5 gap-y-1 pr-4">
               {selectedNode || creatingUnder ? (
                 <>

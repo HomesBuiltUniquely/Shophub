@@ -28,7 +28,7 @@ export function getHomesMerryDbPool(): mysql.Pool {
       host: process.env.HOMES_MERRY_DB_HOST || '127.0.0.1',
       port: Number(process.env.HOMES_MERRY_DB_PORT || 3306),
       user: process.env.HOMES_MERRY_DB_USER || 'root',
-      password: process.env.HOMES_MERRY_DB_PASSWORD || 'root@root',
+      password: process.env.HOMES_MERRY_DB_PASSWORD || 'Root@123',
       database: process.env.HOMES_MERRY_DB_NAME || 'homes_merry',
       waitForConnections: true,
       connectionLimit: 8,

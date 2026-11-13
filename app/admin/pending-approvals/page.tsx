@@ -237,7 +237,7 @@ export default function PendingApprovalsPage() {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex">
         <Sidebar />
-        <main className="flex-1 ml-56 p-8 flex items-center justify-center">
+        <main className="flex-1 lg:ml-56 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center max-w-md">
             <h2 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h2>
             <p className="text-sm text-gray-600 mb-4">
@@ -258,7 +258,7 @@ export default function PendingApprovalsPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex">
       <Sidebar />
-      <main className="flex-1 ml-56 pt-20 flex flex-col min-w-0">
+      <main className="flex-1 lg:ml-56 pt-20 flex flex-col min-w-0">
         <TopHeader title="Pending Approvals" />
 
         <div className="p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">

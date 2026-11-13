@@ -75,7 +75,7 @@ export default function OfferingsDashboard() {
 
   return (
     <EnterpriseShell title="Dashboard" searchQuery={searchQuery} onSearchChange={setSearchQuery} placeholder="Search Offerings...">
-      <main className="ml-56 pt-16 p-8 max-w-[1400px]">
+      <main className="lg:ml-56 pt-16 p-4 sm:p-6 lg:p-8 max-w-[1400px]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Offerings Dashboard</h1>

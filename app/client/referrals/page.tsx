@@ -36,10 +36,10 @@ function ReferralsContent() {
     <div className="min-h-screen bg-[#FAF7F2] text-gray-900 font-sans flex">
       <ClientSidebar />
 
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         <ClientHeader />
 
-        <main className="flex-1 px-8 sm:px-10 py-8 max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 max-w-[1440px] w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-1.5">

@@ -125,7 +125,7 @@ function ClientOfferingDetailContent() {
       <ClientSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         <ClientHeader
           pageTitle="Offerings"
           searchPlaceholder="Search catalog & finishes..."
@@ -143,7 +143,7 @@ function ClientOfferingDetailContent() {
           </div>
         )}
 
-        <main className="flex-1 px-8 sm:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-6">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 max-w-[1440px] w-full mx-auto space-y-6">
           {/* Breadcrumb & Navigation Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <nav className="flex items-center gap-2 text-xs font-medium text-gray-500">

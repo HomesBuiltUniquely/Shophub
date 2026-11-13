@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { isInternalStaff } from '@/lib/auth/session';
 import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import HubLogo from '@/components/brand/HubLogo';
+import { useMobileNav } from '@/components/layout/MobileNav';
+import SignOutButton from '@/components/auth/SignOutButton';
 
 const menuItems = [
   { name: 'DASHBOARD', href: '/dashboard', icon: 'dashboard' },
@@ -21,6 +23,7 @@ const INTERNAL_HREFS = new Set(['/offerings', '/quote-engine', '/offering-invoic
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { open, close } = useMobileNav();
   const user = useCurrentUser();
   const isAdmin = user?.role === 'admin';
   const isEnterprise = user?.role === 'enterprise';
@@ -44,15 +47,31 @@ export default function Sidebar() {
     : baseItems;
 
   return (
-    <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0">
+    <>
+    {open && (
+      <button
+        type="button"
+        aria-label="Close menu"
+        className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        onClick={close}
+      />
+    )}
+    <aside className={`w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
       {/* Logo/Brand */}
-      <Link href="/offerings" className="px-4 py-6 bg-white block border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <div className="flex items-start justify-between border-b border-gray-100">
+      <Link href="/offerings" className="px-4 py-6 bg-white block flex-1 hover:bg-gray-50 transition-colors">
         <HubLogo height={26} />
         <div className="text-gray-400 text-[10px] uppercase tracking-wide mt-1.5">Enterprise Edition</div>
       </Link>
+      <button type="button" onClick={close} aria-label="Close menu" className="lg:hidden m-3 p-2 rounded-md text-gray-500 hover:bg-gray-100">
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 pt-4">
+      <nav className="flex-1 p-3 pt-4 overflow-y-auto">
         <ul className="space-y-0.5">
           {visibleItems.map((item) => {
             const isCreateOffering = pathname.startsWith('/offerings/CreateOfferings');
@@ -135,6 +154,10 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
+      <div className="p-3 border-t border-gray-100 lg:hidden">
+        <SignOutButton className="w-full rounded-md px-3 py-2.5 text-left text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+      </div>
     </aside>
+    </>
   );
 }

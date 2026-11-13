@@ -227,7 +227,7 @@ export default function ImportPage() {
 
   return (
     <EnterpriseShell title="Import" placeholder="Search catalog...">
-      <main className="ml-56 pt-16 p-8 max-w-5xl">
+      <main className="lg:ml-56 pt-16 p-4 sm:p-6 lg:p-8 max-w-5xl">
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Import products</h1>
         <p className="mt-1 text-sm text-gray-500">
           Bulk-create offerings from Excel or a Google Sheet. Map columns to Create Product fields, then import.
@@ -349,7 +349,7 @@ export default function ImportPage() {
               {groupedFields.map(({ group, fields }) => (
                 <div key={group}>
                   <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">{group}</h3>
-                  <div className="overflow-hidden rounded-xl border border-gray-100">
+                  <div className="overflow-x-auto rounded-xl border border-gray-100">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                         <tr>

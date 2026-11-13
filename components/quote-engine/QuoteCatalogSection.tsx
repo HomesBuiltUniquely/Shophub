@@ -66,10 +66,10 @@ export default function QuoteCatalogSection({
   });
 
   return (
-    <div className="flex-1 px-8 py-6 pb-24 overflow-y-auto">
+    <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pb-24 overflow-y-auto min-w-0">
       {/* Offering Catalog Header with Filters */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Offering Catalog</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Offering Catalog</h1>
         <button
           onClick={() => setFilterOpen(!filterOpen)}
           className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors ${

@@ -112,9 +112,9 @@ export default function QuoteInvoiceSheet({
 
       <div
         id="hub-quote-invoice"
-        className="mx-auto my-6 w-[210mm] max-w-full bg-white px-10 py-8 text-[#111] shadow-2xl print:my-0 print:w-full print:max-w-none print:shadow-none"
+        className="mx-auto my-4 sm:my-6 w-[210mm] max-w-full bg-white px-4 py-6 sm:px-10 sm:py-8 text-[#111] shadow-2xl print:my-0 print:w-full print:max-w-none print:shadow-none"
       >
-        <div className="flex items-start justify-between gap-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
           <div className="text-[12px] leading-snug">
             <div className="text-[11px] text-[#555]">Account number:</div>
             <div className="font-semibold">{quoteNo}</div>
@@ -124,7 +124,7 @@ export default function QuoteInvoiceSheet({
             <div className="text-[#555]">ATTN: {issuedBy || 'Hub Interior'}</div>
             <div className="text-[#555]">Bengaluru, Karnataka, IN</div>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <img
               src="/images/hub-logo.png"
               alt="HUB"

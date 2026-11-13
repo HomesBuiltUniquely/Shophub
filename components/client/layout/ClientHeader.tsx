@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useClientDashboard } from '@/lib/client/ClientDashboardContext';
 import { SearchIcon } from '../icons/ClientIcons';
 import SignOutButton from '@/components/auth/SignOutButton';
+import { MobileNavButton } from '@/components/layout/MobileNav';
 
 interface ClientHeaderProps {
   onSearch?: (query: string) => void;
@@ -26,11 +27,12 @@ export default function ClientHeader({
   };
 
   return (
-    <header className="sticky top-0 z-20 w-full bg-[#FAF7F2]/90 backdrop-blur-md px-8 py-4 flex items-center justify-between border-b border-[#EFECE6]/40">
+    <header className="sticky top-0 z-20 w-full bg-[#FAF7F2]/90 backdrop-blur-md px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between gap-3 border-b border-[#EFECE6]/40">
+      <MobileNavButton />
       {/* Left side: Page Title (e.g. My Hub) & Search Input */}
-      <div className="flex items-center gap-5 w-full max-w-lg">
+      <div className="flex items-center gap-3 sm:gap-5 w-full min-w-0 max-w-lg">
         {pageTitle && (
-          <span className="text-lg sm:text-xl font-black text-gray-950 tracking-tight shrink-0">
+          <span className="hidden sm:inline text-lg sm:text-xl font-black text-gray-950 tracking-tight shrink-0">
             {pageTitle}
           </span>
         )}
@@ -50,23 +52,23 @@ export default function ClientHeader({
 
 
       {/* Right Controls */}
-      <div className="flex items-center gap-6 pl-4">
+      <div className="flex items-center gap-2 sm:gap-4 pl-1 sm:pl-4 shrink-0">
         <button
           type="button"
           onClick={openContactModal}
-          className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+          className="hidden md:inline text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
         >
           Contact RM
         </button>
 
-        <SignOutButton className="text-sm font-medium text-gray-700 hover:text-gray-900" />
+        <SignOutButton className="hidden sm:inline text-sm font-medium text-gray-700 hover:text-gray-900" />
 
         {/* Divider */}
-        <div className="h-7 w-[1px] bg-gray-300/80" />
+        <div className="hidden md:block h-7 w-[1px] bg-gray-300/80" />
 
         {/* User Profile */}
         <div className="flex items-center gap-3 select-none">
-          <div className="text-right whitespace-nowrap">
+          <div className="text-right whitespace-nowrap hidden lg:block">
             <div className="text-sm font-bold text-gray-900 leading-tight">
               {data.profile.name}
             </div>

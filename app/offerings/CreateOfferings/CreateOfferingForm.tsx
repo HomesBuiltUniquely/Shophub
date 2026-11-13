@@ -555,17 +555,17 @@ export default function CreateOfferingForm() {
 
   return (
     <div className="pb-28">
-      <div className="w-full max-w-5xl px-10 pt-8 pb-2">
+      <div className="w-full max-w-5xl px-4 sm:px-8 lg:px-10 pt-6 sm:pt-8 pb-2">
         <p className="text-[10px] font-semibold tracking-[0.18em] text-gray-400 uppercase">
           Offerings <span className="mx-1.5 text-gray-300">›</span> {prodId ? 'Edit' : 'New Entry'}
         </p>
-        <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-gray-950">
+        <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-950">
           {prodId ? 'Update Offering' : 'Create Offering'}
         </h1>
       </div>
 
       <div className="sticky top-16 z-20 mt-6 border-b border-gray-200 bg-white">
-        <div className="w-full max-w-5xl px-10 flex gap-1 overflow-x-auto">
+        <div className="w-full max-w-5xl px-4 sm:px-8 lg:px-10 flex gap-1 overflow-x-auto">
           {TABS.map((item) => (
             <button
               key={item}
@@ -604,8 +604,8 @@ export default function CreateOfferingForm() {
         </div>
       )}
 
-      <div className="w-full max-w-6xl px-10">
-      <div className="mt-6 flex items-start gap-6">
+      <div className="w-full max-w-6xl px-4 sm:px-8 lg:px-10">
+      <div className="mt-6 flex flex-col xl:flex-row items-start gap-6">
       <div className="min-w-0 flex-1 space-y-5">
         {tab === 'GENERAL' && (
           <>
@@ -623,7 +623,7 @@ export default function CreateOfferingForm() {
                   onChange={(e) => setField('offering_name', e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Offering Type</label>
                   <select
@@ -667,7 +667,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Classification</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Organize the offering for internal and external navigation.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Category</label>
                   <select
@@ -804,7 +804,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Pricing Configuration</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Define the financial parameters for this offering.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Cost Price</label>
                   <NumberEntry value={form.cost_price} onChange={(value) => setField('cost_price', value)} />
@@ -884,7 +884,7 @@ export default function CreateOfferingForm() {
                   </button>
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>SKU / Identifier</label>
                   <input
@@ -907,7 +907,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Stock Parameters</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Define quantity thresholds and reorder points.</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className={labelCls}>Current Stock</label>
                   <input type="number" className={inputCls} value={form.current_stock} onChange={(e) => setField('current_stock', Number(e.target.value))} />
@@ -927,7 +927,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Sourcing & Logistics</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Vendor details and fulfillment locations.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Preferred Vendor</label>
                   <select className={inputCls} value={form.preferred_vendor} onChange={(e) => setField('preferred_vendor', e.target.value)}>
@@ -974,7 +974,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Gallery Images</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Additional photos showing different angles and details.</p>
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {form.gallery_images.map((img, idx) => (
                   <OfferingImageUploader
                     key={idx}
@@ -995,7 +995,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Videos & 360 View</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Interactive media to enhance customer engagement.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Video URL (Youtube / Vimeo)</label>
                   <input className={inputCls} placeholder="https://youtube.com/watch?v=..." value={form.video_link} onChange={(e) => setField('video_link', e.target.value)} />
@@ -1024,7 +1024,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Physical Dimensions</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Specify the physical footprint and weight of the offering.</p>
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   ['length_cm', 'Length (cm)'],
                   ['width_cm', 'Width (cm)'],
@@ -1043,7 +1043,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Material & Finish</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Define the composition and aesthetic treatment.</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className={labelCls}>Primary Material</label>
                   <select className={inputCls} value={form.primary_material} onChange={(e) => setField('primary_material', e.target.value)}>
@@ -1107,7 +1107,7 @@ export default function CreateOfferingForm() {
                 <p className="text-xs text-gray-500 mt-0.5">Add custom key-value pairs for specific requirements.</p>
               </div>
               {form.additional_attributes.map((attr, idx) => (
-                <div key={idx} className="grid grid-cols-2 gap-3">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     className={inputCls}
                     placeholder="Attribute Name (e.g. Eco-friendly)"
@@ -1164,8 +1164,8 @@ export default function CreateOfferingForm() {
               </div>
               <div>
                 <label className={labelCls}>URL Slug</label>
-                <div className="flex overflow-hidden rounded-lg border border-gray-200">
-                  <span className="bg-gray-50 px-3 py-2.5 text-sm text-gray-400 whitespace-nowrap">hubinterior.com/offerings/</span>
+                <div className="flex flex-col sm:flex-row overflow-hidden rounded-lg border border-gray-200">
+                  <span className="bg-gray-50 px-3 py-2.5 text-sm text-gray-400 sm:whitespace-nowrap">hubinterior.com/offerings/</span>
                   <input className="flex-1 px-3 text-sm outline-none" value={form.url_slug} onChange={(e) => setField('url_slug', slugify(e.target.value))} />
                 </div>
               </div>
@@ -1218,7 +1218,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">Visibility & Status</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Control how this offering is published and scheduled.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Publishing Status</label>
                   <select className={inputCls} value={form.publishing_status} onChange={(e) => setField('publishing_status', e.target.value)}>
@@ -1281,7 +1281,7 @@ export default function CreateOfferingForm() {
                 <h2 className="text-sm font-semibold text-gray-900">System Hooks & Integration</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Connect this offering to ERP modules and accounting.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 text-sm text-gray-800">
                   <p className={labelCls}>ERP Module Integration</p>
                   {[
@@ -1313,7 +1313,7 @@ export default function CreateOfferingForm() {
         )}
       </div>
       {prodId && incomplete.length > 0 && (
-        <aside className="w-64 shrink-0 sticky top-36 rounded-2xl bg-[#F6F7F8] p-6">
+        <aside className="w-full xl:w-64 shrink-0 xl:sticky xl:top-36 rounded-2xl bg-[#F6F7F8] p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-gray-900">Not updated yet</h2>
           <p className="mt-0.5 text-xs text-gray-500">{incomplete.length} fields remaining</p>
           <div className="mt-4 space-y-2">
@@ -1334,8 +1334,8 @@ export default function CreateOfferingForm() {
       </div>
       </div>
 
-      <div className="fixed bottom-0 right-0 left-56 z-20 border-t border-gray-200 bg-white">
-      <div className="w-full max-w-5xl px-10 py-3 flex items-center justify-between gap-3">
+      <div className="fixed bottom-0 right-0 left-0 lg:left-56 z-20 border-t border-gray-200 bg-white">
+      <div className="w-full max-w-5xl px-4 sm:px-8 lg:px-10 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"

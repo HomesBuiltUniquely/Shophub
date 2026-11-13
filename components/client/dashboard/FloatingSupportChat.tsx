@@ -9,9 +9,9 @@ export default function FloatingSupportChat() {
   const { data, openContactModal } = useClientDashboard();
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
       {isOpen && (
-        <div className="mb-3 w-80 bg-white rounded-2xl shadow-2xl border border-black/10 p-4 transition-all">
+        <div className="mb-3 w-[min(20rem,calc(100vw-2rem))] bg-white rounded-2xl shadow-2xl border border-black/10 p-4 transition-all">
           <div className="flex items-center justify-between border-b pb-2 mb-3">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
