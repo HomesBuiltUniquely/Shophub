@@ -178,11 +178,17 @@ export async function GET(request: NextRequest) {
         : deduplicateProducts(springProducts);
 
     let localCatalog: any[] = [];
+    const listWhere =
+      session.role === 'enterprise'
+        ? "CAST(is_published AS UNSIGNED) = 1 AND (approval_status IS NULL OR approval_status = 'APPROVED')"
+        : ownerWhere;
+    const listParams = session.role === 'enterprise' ? [] : ownerParams;
+
     try {
-      const publishedSql = isPublished ? ' AND CAST(is_published AS UNSIGNED) = 1' : '';
+      const publishedSql = isPublished && session.role !== 'enterprise' ? ' AND CAST(is_published AS UNSIGNED) = 1' : '';
       const [localRows]: any = await pool.query(
-        `SELECT * FROM product WHERE ${ownerWhere}${publishedSql}${typeSql} ORDER BY prod_id DESC`,
-        ownerParams
+        `SELECT * FROM product WHERE ${listWhere}${publishedSql}${typeSql} ORDER BY prod_id DESC`,
+        listParams
       );
       localCatalog = deduplicateProducts((Array.isArray(localRows) ? localRows : []).map(mapProductRow));
     } catch (error: any) {
@@ -197,7 +203,18 @@ export async function GET(request: NextRequest) {
       const key = String(product.sku_id || product.sku || product.prodId || '').trim().toUpperCase();
       if (key && !merged.has(key)) merged.set(key, product);
     }
-    const catalogProducts = filterVisibleByType(Array.from(merged.values()), session);
+    let catalogProducts = filterVisibleByType(Array.from(merged.values()), session);
+    if (session.role === 'enterprise') {
+      catalogProducts = catalogProducts.filter((p: any) => {
+        const isPub = p.is_published ?? p.isPublished;
+        const approval = p.approval_status ?? p.approvalStatus;
+        const publishing = p.publishing_status ?? p.publishingStatus;
+        if (approval === 'PENDING' || approval === 'REJECTED') return false;
+        if (publishing === 'PENDING_APPROVAL' || publishing === 'REJECTED') return false;
+        if (isPub === false || isPub === 0 || isPub === '0') return false;
+        return true;
+      });
+    }
     if (catalogProducts.length > 0) {
       const totalElements = catalogProducts.length;
       const totalPages = Math.max(1, Math.ceil(totalElements / size));
@@ -220,13 +237,13 @@ export async function GET(request: NextRequest) {
     const uniqueProductIdsSql = `
       SELECT MAX(prod_id) AS prod_id
       FROM product
-      WHERE ${ownerWhere}${typeSql}
+      WHERE ${listWhere}${typeSql}
       GROUP BY COALESCE(NULLIF(UPPER(TRIM(sku_id)), ''), CONCAT('ID:', prod_id))
     `;
 
     const [countRows]: any = await pool.query(
       `SELECT COUNT(*) AS total FROM (${uniqueProductIdsSql}) AS unique_products`,
-      ownerParams
+      listParams
     );
     const totalElements = Number(countRows?.[0]?.total ?? 0);
 
@@ -237,7 +254,7 @@ export async function GET(request: NextRequest) {
          ON unique_products.prod_id = product.prod_id
        ORDER BY product.prod_id DESC
        LIMIT ? OFFSET ?`,
-      [...ownerParams, ...ownerParams, size, offset]
+      [...listParams, ...listParams, size, offset]
     );
 
     const content = deduplicateProducts(

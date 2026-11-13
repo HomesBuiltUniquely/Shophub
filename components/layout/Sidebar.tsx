@@ -22,9 +22,26 @@ const INTERNAL_HREFS = new Set(['/offerings', '/quote-engine', '/offering-invoic
 export default function Sidebar() {
   const pathname = usePathname();
   const user = useCurrentUser();
-  const visibleItems = isInternalStaff(user)
+  const isAdmin = user?.role === 'admin';
+  const isEnterprise = user?.role === 'enterprise';
+
+  const baseItems = isInternalStaff(user)
     ? menuItems.filter((item) => INTERNAL_HREFS.has(item.href))
     : menuItems;
+
+  const visibleItems = isAdmin
+    ? [
+        ...baseItems.slice(0, 2),
+        { name: 'PENDING APPROVAL', href: '/admin/pending-approvals', icon: 'pending' },
+        ...baseItems.slice(2),
+      ]
+    : isEnterprise
+    ? [
+        ...baseItems.slice(0, 2),
+        { name: 'APPROVAL TRACK', href: '/enterprise/pending-approvals', icon: 'pending' },
+        ...baseItems.slice(2),
+      ]
+    : baseItems;
 
   return (
     <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0">
@@ -72,6 +89,11 @@ export default function Sidebar() {
                   {item.icon === 'list' && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  )}
+                  {item.icon === 'pending' && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   )}
                   {item.icon === 'quote' && (

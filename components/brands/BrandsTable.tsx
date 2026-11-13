@@ -104,6 +104,14 @@ function CategoryIcon({ category }: { category: string }) {
 }
 
 export default function BrandsTable({ brands, isLoading, onBrandClick, onEditBrand }: BrandsTableProps) {
+  const sortedBrands = React.useMemo(() => {
+    return [...brands].sort((a, b) => {
+      const isHubA = a.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+      const isHubB = b.brand_name?.trim().toLowerCase() === 'hub' ? 0 : 1;
+      if (isHubA !== isHubB) return isHubA - isHubB;
+      return 0;
+    });
+  }, [brands]);
   if (isLoading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/80 p-12 text-center shadow-xs">
@@ -163,11 +171,13 @@ export default function BrandsTable({ brands, isLoading, onBrandClick, onEditBra
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {brands.map((brand) => {
+            {sortedBrands.map((brand) => {
               const flag = COUNTRY_FLAGS[brand.country] || '🌐';
               const categories = Array.isArray(brand.categories) ? brand.categories : [];
               const visibleCategories = categories.slice(0, 2);
               const overflowCount = categories.length - visibleCategories.length;
+              const isHub = brand.brand_name?.trim().toLowerCase() === 'hub';
+              const logoSrc = isHub ? '/images/hub-logo.jpg' : (brand.logo_url || '/brands/default.svg');
 
               return (
                 <tr
@@ -179,12 +189,12 @@ export default function BrandsTable({ brands, isLoading, onBrandClick, onEditBra
                   <td className="py-4 pl-6 pr-3 w-16">
                     <div className="w-11 h-11 bg-white border border-gray-200/90 rounded-xl p-1 flex items-center justify-center shadow-2xs group-hover:border-gray-300 transition-all">
                       <img
-                        src={brand.logo_url}
+                        src={logoSrc}
                         alt={`${brand.brand_name} logo`}
                         className="w-full h-full object-contain rounded-lg"
                         onError={(e) => {
                           // Fallback to default SVG if image fails
-                          (e.target as HTMLImageElement).src = '/brands/default.svg';
+                          (e.target as HTMLImageElement).src = isHub ? '/images/hub-logo.jpg' : '/brands/default.svg';
                         }}
                       />
                     </div>

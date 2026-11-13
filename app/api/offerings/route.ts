@@ -69,7 +69,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Offering not found.' }, { status: 404 });
     }
 
-    const row = localProductValues(payload, session.id);
+    const row = localProductValues(payload, session.id, session.role);
     const spring = await trySpring(
       `/products/updateProduct/${prodId}`,
       payload,
@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest) {
     await pool.query(
       `UPDATE product SET
         offering_name=?, offering_type=?, sku_id=?, category=?, brand=?, current_stock=?,
-        selling_price=?, cost_price=?, is_published=?, publishing_status=?,
+        selling_price=?, cost_price=?, is_published=?, publishing_status=?, approval_status=?,
         gallery_images=?, allowed_users=?, seo_keywords=?,
         finish_type=?, load_capacity=?, preferred_vendor=?, primary_material=?, secondary_material=?,
         gst_rate=?, price_unit=?, discount=?, lead_time=?, minimum_stock_level=?, reorder_quantity=?,
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       WHERE prod_id=?`,
       [
         row.offering_name, row.offering_type, row.sku_id, row.category, row.brand, row.current_stock,
-        row.selling_price, row.cost_price, row.is_published, row.publishing_status,
+        row.selling_price, row.cost_price, row.is_published, row.publishing_status, row.approval_status,
         row.gallery_images, JSON.stringify(payload.internal?.access_permissions?.allowed_users || []), row.seo_keywords,
         row.finish_type, row.load_capacity, row.preferred_vendor, row.primary_material, row.secondary_material,
         row.gst_rate, row.price_unit, row.discount, row.lead_time, row.minimum_stock_level, row.reorder_quantity,
@@ -99,11 +99,15 @@ export async function PUT(request: NextRequest) {
       ]
     );
 
+    const message = session.role === 'enterprise'
+      ? `Offering "${payload.offering_name}" updated and submitted for Admin approval`
+      : payload.is_published
+      ? `Offering "${payload.offering_name}" updated and published`
+      : `Draft "${payload.offering_name}" updated`;
+
     return NextResponse.json({
       success: true,
-      message: payload.is_published
-        ? `Offering "${payload.offering_name}" updated and published`
-        : `Draft "${payload.offering_name}" updated`,
+      message,
       prodId,
       spring,
     });

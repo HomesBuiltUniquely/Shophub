@@ -23,6 +23,14 @@ const COUNTRY_CODES: Record<string, string> = {
 
 const availableCategories = ['FURNITURE', 'LIGHTING', 'DECOR', 'BEDDING', 'STORAGE', 'KITCHEN', 'OUTDOOR'];
 
+export function generateBrandCode(brandName: string, country: string): string {
+  const clean = (brandName || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!clean) return '';
+  const prefix = clean.length >= 3 ? clean.slice(0, 3) : clean.padEnd(3, 'X');
+  const countryCode = COUNTRY_CODES[country] || 'IN';
+  return `${prefix}-${countryCode}-01`;
+}
+
 async function uploadBrandLogo(file: File) {
   const body = new FormData();
   body.append('file', file);
@@ -101,7 +109,8 @@ export default function AddBrandModal({ isOpen, onClose, onBrandCreated, brand =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brandName || !code) {
+    const finalCode = (code || (!isEdit ? generateBrandCode(brandName, country) : brand?.code || '')).toUpperCase();
+    if (!brandName || !finalCode) {
       setError('Brand Name and Code are required.');
       return;
     }
@@ -112,7 +121,7 @@ export default function AddBrandModal({ isOpen, onClose, onBrandCreated, brand =
     const payload = {
       brand_name: brandName,
       manufacturer: manufacturer || `${brandName} Global Group`,
-      code: code.toUpperCase(),
+      code: isEdit ? (brand?.code || finalCode) : finalCode,
       country,
       country_code: COUNTRY_CODES[country] || 'IN',
       offerings_count: offeringsCount,
@@ -225,7 +234,13 @@ export default function AddBrandModal({ isOpen, onClose, onBrandCreated, brand =
               type="text"
               required
               value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setBrandName(val);
+                if (!isEdit) {
+                  setCode(generateBrandCode(val, country));
+                }
+              }}
               placeholder="e.g. Cassina Living"
               className="w-full px-3.5 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
             />
@@ -246,17 +261,32 @@ export default function AddBrandModal({ isOpen, onClose, onBrandCreated, brand =
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Brand Code *
-              </label>
-              <input
-                type="text"
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="CAS-IT-01"
-                className="w-full px-3.5 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                  Brand Code *
+                </label>
+                <span className="text-[10px] font-bold text-gray-400">
+                  {isEdit ? 'Locked' : 'Auto-generated'}
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  readOnly
+                  tabIndex={-1}
+                  value={code}
+                  placeholder={isEdit ? 'e.g. CAS-IT-01' : 'Auto-generated on name entry'}
+                  title={isEdit ? 'Brand code cannot be changed once created.' : 'Brand code is automatically generated and cannot be manually edited.'}
+                  className="w-full px-3.5 py-2 pr-16 bg-gray-100/80 border border-gray-200 rounded-xl text-xs font-semibold font-mono text-gray-800 cursor-not-allowed select-all focus:outline-none"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-extrabold uppercase tracking-wider text-gray-500 bg-gray-200/80 border border-gray-300/70 px-1.5 py-0.5 rounded pointer-events-none">
+                  {isEdit ? 'LOCKED' : 'AUTO'}
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">
+                {isEdit ? 'Brand code cannot be edited.' : 'Automatically generated from brand name.'}
+              </p>
             </div>
             <div>
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
@@ -264,7 +294,13 @@ export default function AddBrandModal({ isOpen, onClose, onBrandCreated, brand =
               </label>
               <select
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCountry(val);
+                  if (!isEdit && brandName) {
+                    setCode(generateBrandCode(brandName, val));
+                  }
+                }}
                 className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
               >
                 <option value="Italy">🇮🇹 Italy</option>

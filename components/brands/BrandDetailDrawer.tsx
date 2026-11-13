@@ -66,11 +66,11 @@ export default function BrandDetailDrawer({
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-200/90 p-1 flex items-center justify-center">
                 <img
-                  src={brand.logo_url}
+                  src={brand.brand_name?.trim().toLowerCase() === 'hub' ? '/images/hub-logo.jpg' : (brand.logo_url || '/brands/default.svg')}
                   alt={brand.brand_name}
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/brands/default.svg';
+                    (e.target as HTMLImageElement).src = brand.brand_name?.trim().toLowerCase() === 'hub' ? '/images/hub-logo.jpg' : '/brands/default.svg';
                   }}
                 />
               </div>

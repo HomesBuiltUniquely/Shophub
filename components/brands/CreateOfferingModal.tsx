@@ -29,6 +29,8 @@ interface CreateOfferingModalProps {
   onOfferingCreated: () => void;
 }
 
+const STATIC_HUB_BRAND = { brand_id: 7, brand_name: 'HUB', code: 'HUB', logo_url: '/images/hub-logo.jpg' };
+
 export default function CreateOfferingModal({
 
   isOpen,
@@ -42,8 +44,10 @@ export default function CreateOfferingModal({
   const [offeringType, setOfferingType] = useState<'PRODUCT' | 'SERVICE' | 'BUNDLE'>('PRODUCT');
   const [skuId, setSkuId] = useState('');
   const [category, setCategory] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState(brands[0]?.brand_name || 'Lumina Italica');
-  const [dropdownBrands, setDropdownBrands] = useState<{ brand_id: number; brand_name: string; code: string }[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState('Hub');
+  const [dropdownBrands, setDropdownBrands] = useState<{ brand_id: number; brand_name: string; code?: string }[]>([
+    STATIC_HUB_BRAND,
+  ]);
   const [sellingPrice, setSellingPrice] = useState(19999);
   const [costPrice, setCostPrice] = useState(11000);
   const [currentStock, setCurrentStock] = useState(40);
@@ -60,9 +64,25 @@ export default function CreateOfferingModal({
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.brands) && data.brands.length > 0) {
-            setDropdownBrands(data.brands);
-            if (!selectedBrand) {
-              setSelectedBrand(data.brands[0].brand_name);
+            const filtered = data.brands.filter(
+              (b: any) => b && b.brand_name?.trim().toLowerCase() !== 'hub brand'
+            );
+            const existingHub = filtered.find(
+              (b: any) => b.brand_name?.trim().toLowerCase() === 'hub'
+            );
+            const hubItem = existingHub
+              ? { ...STATIC_HUB_BRAND, ...existingHub, brand_name: 'HUB' }
+              : STATIC_HUB_BRAND;
+
+            const others = filtered.filter(
+              (b: any) =>
+                b.brand_name?.trim().toLowerCase() !== 'hub' &&
+                b.brand_id !== hubItem.brand_id
+            );
+            const list = [hubItem, ...others];
+            setDropdownBrands(list);
+            if (!selectedBrand || selectedBrand.trim().toLowerCase() === 'hub brand') {
+              setSelectedBrand(list[0].brand_name);
             }
           }
         })
@@ -75,7 +95,10 @@ export default function CreateOfferingModal({
   const brandOptions =
     dropdownBrands.length > 0
       ? dropdownBrands
-      : brands.map((b) => ({ brand_id: b.id, brand_name: b.brand_name, code: b.code }));
+      : [
+          STATIC_HUB_BRAND,
+          ...brands.map((b) => ({ brand_id: b.id, brand_name: b.brand_name, code: b.code })),
+        ];
 
   const categories = [
     'FURNITURE',
@@ -310,14 +333,20 @@ export default function CreateOfferingModal({
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Publishing Status
               </label>
-              <select
-                value={publishingStatus}
-                onChange={(e) => setPublishingStatus(e.target.value as any)}
-                className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
-              >
-                <option value="PUBLISHED">PUBLISHED</option>
-                <option value="DRAFT">DRAFT</option>
-              </select>
+              {user?.role === 'enterprise' ? (
+                <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-800">
+                  Requires Admin Approval
+                </div>
+              ) : (
+                <select
+                  value={publishingStatus}
+                  onChange={(e) => setPublishingStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-[#F9FAFB] border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
+                >
+                  <option value="PUBLISHED">PUBLISHED</option>
+                  <option value="DRAFT">DRAFT</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -334,7 +363,9 @@ export default function CreateOfferingModal({
               disabled={isSubmitting}
               className="px-5 py-2 bg-black hover:bg-gray-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? 'Creating Offering...' : 'Create Offering'}
+              {isSubmitting
+                ? (user?.role === 'enterprise' ? 'Submitting for Approval...' : 'Creating Offering...')
+                : (user?.role === 'enterprise' ? 'Submit for Approval' : 'Create Offering')}
             </button>
           </div>
         </form>
